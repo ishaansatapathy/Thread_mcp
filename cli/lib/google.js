@@ -231,6 +231,13 @@ async function docsCreate(token, { title, content }) {
   return { documentId: doc.documentId, url: `https://docs.google.com/document/d/${doc.documentId}/edit` };
 }
 
+// ── Sheets ─────────────────────────────────────────────────────────────────
+
+async function sheetsRead(token, spreadsheetId, range = "A1:Z100") {
+  const result = await g(`${SHEETS}/${spreadsheetId}/values/${encodeURIComponent(range)}`, token);
+  return result.values || [];
+}
+
 module.exports = {
   gmailList,
   gmailSearch,
@@ -244,4 +251,5 @@ module.exports = {
   classroomDueWork,
   docsRead,
   docsCreate,
+  sheetsRead,
 };

@@ -237,6 +237,26 @@ const commands = {
     }
   },
 
+  async forms(args) {
+    const token = await auth.getAccessToken();
+    const sub = args[0];
+    if (sub === "read") {
+      const formId = args[1];
+      if (!formId) return console.error("Usage: threadmcp forms read <formId>");
+      printHeader("Form");
+      const form = await google.formsRead(token, formId);
+      console.log(`${form.title}\n\n${form.questions.map((q, i) => `${i + 1}. ${q}`).join("\n")}`);
+    } else if (sub === "responses") {
+      const formId = args[1];
+      if (!formId) return console.error("Usage: threadmcp forms responses <formId>");
+      printHeader("Form Responses");
+      const responses = await google.formsResponses(token, formId);
+      console.log(`${responses.length} response(s) received.`);
+    } else {
+      console.error("Usage: threadmcp forms [read <formId>|responses <formId>]");
+    }
+  },
+
   async classroom() {
     const token = await auth.getAccessToken();
     printHeader("Classroom — Due Work");

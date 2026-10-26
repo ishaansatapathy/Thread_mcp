@@ -34,6 +34,8 @@ function parseWhen(text) {
       if (ap === "pm" && h < 12) h += 12;
       if (ap === "am" && h === 12) h = 0;
       baseDate.setHours(h, min, 0, 0);
+    } else {
+      baseDate.setHours(9, 0, 0, 0);
     }
     return baseDate;
   }

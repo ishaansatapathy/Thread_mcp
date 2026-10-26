@@ -314,6 +314,23 @@ const commands = {
 
 \x1b[36mDrive:\x1b[0m
   threadmcp drive find <query>
+  threadmcp drive read <fileId>
+
+\x1b[36mDocs:\x1b[0m
+  threadmcp doc read <documentId>
+  threadmcp doc create "<title>" <content>
+
+\x1b[36mSheets:\x1b[0m
+  threadmcp sheet read <spreadsheetId> [range]
+  threadmcp sheet create "<title>" <row,of,values>
+
+\x1b[36mSlides:\x1b[0m
+  threadmcp slides read <presentationId>
+  threadmcp slides create "<title>" <bodyText>
+
+\x1b[36mForms:\x1b[0m
+  threadmcp forms read <formId>
+  threadmcp forms responses <formId>
 
 \x1b[36mClassroom:\x1b[0m
   threadmcp classroom

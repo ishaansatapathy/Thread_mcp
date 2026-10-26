@@ -151,8 +151,14 @@ const commands = {
       const files = await google.driveSearch(token, query, 10);
       if (!files.length) return console.log("No files found.");
       for (const f of files) console.log(`${f.name}\n  ${f.webViewLink}`);
+    } else if (sub === "read") {
+      const fileId = args[1];
+      if (!fileId) return console.error("Usage: threadmcp drive read <fileId>");
+      printHeader("Drive File");
+      const file = await google.driveReadFile(token, fileId);
+      console.log(`${file.name} (${file.mimeType})\n\n${file.content}`);
     } else {
-      console.error("Usage: threadmcp drive find <query>");
+      console.error("Usage: threadmcp drive [find <query>|read <fileId>]");
     }
   },
 

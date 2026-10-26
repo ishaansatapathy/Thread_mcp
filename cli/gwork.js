@@ -57,7 +57,9 @@ const commands = {
       const items = await google.gmailList(token, { maxResults: 10, labels: "INBOX" });
       if (!items.length) return console.log("Inbox is empty.");
       for (const m of items) {
-        console.log(`${m.unread ? "\x1b[33m[UNREAD]\x1b[0m " : ""}${m.from} — "${m.subject}"\n  ${m.snippet}`);
+        console.log(
+          `${m.unread ? "\x1b[33m[UNREAD]\x1b[0m " : ""}${m.from} — "${m.subject}"\n  ${m.snippet}\n  \x1b[2mthread: ${m.threadId}\x1b[0m`,
+        );
       }
     } else if (sub === "search") {
       const query = args.slice(1).join(" ");
@@ -65,7 +67,8 @@ const commands = {
       printHeader(`Search: ${query}`);
       const items = await google.gmailSearch(token, query, 10);
       if (!items.length) return console.log("No results.");
-      for (const m of items) console.log(`${m.from} — "${m.subject}"\n  ${m.snippet}`);
+      for (const m of items)
+        console.log(`${m.from} — "${m.subject}"\n  ${m.snippet}\n  \x1b[2mthread: ${m.threadId}\x1b[0m`);
     } else if (sub === "read") {
       const threadId = args[1];
       if (!threadId) return console.error("Usage: threadmcp mail read <threadId>");
@@ -150,7 +153,7 @@ const commands = {
       printHeader(`Drive: ${query}`);
       const files = await google.driveSearch(token, query, 10);
       if (!files.length) return console.log("No files found.");
-      for (const f of files) console.log(`${f.name}\n  ${f.webViewLink}`);
+      for (const f of files) console.log(`${f.name}\n  ${f.webViewLink}\n  \x1b[2mid: ${f.id}\x1b[0m`);
     } else if (sub === "read") {
       const fileId = args[1];
       if (!fileId) return console.error("Usage: threadmcp drive read <fileId>");

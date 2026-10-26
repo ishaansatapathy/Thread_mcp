@@ -161,12 +161,16 @@ async function callTool(name, args = {}) {
     case "list_inbox": {
       const items = await google.gmailList(token, { query: args.query, maxResults: args.maxResults || 10, labels: "INBOX" });
       return textResult(
-        items.map((m) => `${m.unread ? "[UNREAD] " : ""}${m.from}: "${m.subject}" — ${m.snippet}`).join("\n"),
+        items
+          .map((m) => `${m.unread ? "[UNREAD] " : ""}${m.from}: "${m.subject}" — ${m.snippet} (threadId: ${m.threadId})`)
+          .join("\n"),
       );
     }
     case "search_inbox": {
       const items = await google.gmailSearch(token, args.query, args.maxResults || 10);
-      return textResult(items.map((m) => `${m.from}: "${m.subject}" — ${m.snippet}`).join("\n"));
+      return textResult(
+        items.map((m) => `${m.from}: "${m.subject}" — ${m.snippet} (threadId: ${m.threadId})`).join("\n"),
+      );
     }
     case "get_thread": {
       const msgs = await google.gmailGetThread(token, args.threadId);
@@ -204,7 +208,7 @@ async function callTool(name, args = {}) {
     }
     case "search_drive": {
       const files = await google.driveSearch(token, args.query, args.maxResults || 10);
-      return textResult(files.map((f) => `${f.name} — ${f.webViewLink}`).join("\n"));
+      return textResult(files.map((f) => `${f.name} (${f.mimeType}, id: ${f.id}) — ${f.webViewLink}`).join("\n"));
     }
     case "list_classroom_due_work": {
       const work = await google.classroomDueWork(token);

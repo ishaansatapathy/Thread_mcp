@@ -1,11 +1,11 @@
 {
-  "name": "threadmcp",
+  "name": "@ishaan_satapathy/threadmcp",
   "version": "1.1.0",
   "description": "Google Workspace CLI — control Gmail, Calendar, Drive, Meet and more from your terminal",
   "bin": {
-    "threadmcp": "./gwork.js"
+    "threadmcp": "gwork.js"
   },
-  "main": "./gwork.js",
+  "main": "gwork.js",
   "files": [
     "gwork.js",
     "mcp-server.js",
@@ -24,7 +24,15 @@
   },
   "homepage": "https://github.com/ishaansatapathy/Thread_mcp#readme",
   "bugs": "https://github.com/ishaansatapathy/Thread_mcp/issues",
-  "keywords": ["google-workspace", "gmail", "calendar", "drive", "cli", "mcp", "alan-ai"],
+  "keywords": [
+    "google-workspace",
+    "gmail",
+    "calendar",
+    "drive",
+    "cli",
+    "mcp",
+    "alan-ai"
+  ],
   "author": "Ishaan Satapathy",
   "license": "MIT",
   "engines": {

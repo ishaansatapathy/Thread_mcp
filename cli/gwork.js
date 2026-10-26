@@ -54,7 +54,7 @@ const commands = {
 
     if (sub === "inbox" || !sub) {
       printHeader("Inbox");
-      const items = await google.gmailList(token, { maxResults: 10 });
+      const items = await google.gmailList(token, { maxResults: 10, labels: "INBOX" });
       if (!items.length) return console.log("Inbox is empty.");
       for (const m of items) {
         console.log(`${m.unread ? "\x1b[33m[UNREAD]\x1b[0m " : ""}${m.from} — "${m.subject}"\n  ${m.snippet}`);
@@ -71,7 +71,7 @@ const commands = {
       if (!threadId) return console.error("Usage: threadmcp mail read <threadId>");
       printHeader("Thread");
       const msgs = await google.gmailGetThread(token, threadId);
-      for (const m of msgs) console.log(`From: ${m.from}\nSubject: ${m.subject}\nDate: ${m.date}\n${m.snippet}\n`);
+      for (const m of msgs) console.log(`From: ${m.from}\nSubject: ${m.subject}\nDate: ${m.date}\n${m.body || m.snippet}\n`);
     } else if (sub === "send") {
       const [to, subject, ...rest] = args.slice(1);
       const body = rest.join(" ");

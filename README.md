@@ -44,9 +44,22 @@ https://meet.google.com/abc-defg-hij
 ## Install
 
 ```bash
+# from npm (once published)
 npm install -g threadmcp
+
+# or run from source
+git clone <repo-url>
+cd google-workspace-mcp/cli
+npm link
+```
+
+Then run:
+
+```bash
 threadmcp login
 ```
+
+> **Token expiry:** New Google Cloud projects start in "Testing" mode where refresh tokens expire after 7 days. Re-run `threadmcp login` if your token stops working. For permanent access, publish the OAuth consent screen or add test users.
 
 The first login asks for a Google OAuth Client ID/Secret (one-time) — create your own at [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials), type "Desktop app" or "Web application", and add this redirect URI:
 
@@ -68,6 +81,19 @@ Add to your Alan AI MCP config:
     "google-workspace": {
       "command": "npx",
       "args": ["-y", "threadmcp", "mcp"]
+    }
+  }
+}
+```
+
+Or from source before npm publish:
+
+```json
+{
+  "mcpServers": {
+    "google-workspace": {
+      "command": "node",
+      "args": ["<path-to-repo>/cli/gwork.js", "mcp"]
     }
   }
 }
@@ -135,6 +161,7 @@ Every write action (send email, create event) prints what it's about to do and a
 | `get_thread` | Read a full email thread |
 | `list_calendar_events` | Upcoming events |
 | `create_meet_link` | Generate a Meet link |
+| `create_calendar_event` | Schedule a Calendar event (with Meet, by default) |
 | `search_drive` | Search Google Drive by filename |
 | `read_drive_file` | Read a Drive file's text content |
 | `read_doc` | Read a Google Doc |

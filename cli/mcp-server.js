@@ -9,6 +9,9 @@
 const readline = require("readline");
 const auth = require("./lib/auth");
 const google = require("./lib/google");
+const { parseWhen } = require("./lib/when");
+
+const SUPPORTED_VERSIONS = ["2024-11-05", "2025-06-18"];
 
 const TOOLS = [
   {
@@ -130,6 +133,21 @@ const TOOLS = [
     description: "Get the response count for a Google Form.",
     inputSchema: { type: "object", required: ["formId"], properties: { formId: { type: "string" } } },
   },
+  {
+    name: "create_calendar_event",
+    description: "Schedule a Google Calendar event. Creates a Meet link by default — perfect for scheduling calls.",
+    inputSchema: {
+      type: "object",
+      required: ["summary", "whenText"],
+      properties: {
+        summary: { type: "string", description: "Event title" },
+        whenText: { type: "string", description: "When, e.g. 'tomorrow 3pm', 'in 2h', 'today 17:00'" },
+        durationMinutes: { type: "number", description: "Duration in minutes (default 30)" },
+        attendees: { type: "array", items: { type: "string" }, description: "Attendee email addresses" },
+        withMeet: { type: "boolean", description: "Include Google Meet link (default true)" },
+      },
+    },
+  },
 ];
 
 function textResult(text) {
@@ -141,7 +159,7 @@ async function callTool(name, args = {}) {
 
   switch (name) {
     case "list_inbox": {
-      const items = await google.gmailList(token, { query: args.query, maxResults: args.maxResults || 10 });
+      const items = await google.gmailList(token, { query: args.query, maxResults: args.maxResults || 10, labels: "INBOX" });
       return textResult(
         items.map((m) => `${m.unread ? "[UNREAD] " : ""}${m.from}: "${m.subject}" — ${m.snippet}`).join("\n"),
       );
@@ -152,7 +170,7 @@ async function callTool(name, args = {}) {
     }
     case "get_thread": {
       const msgs = await google.gmailGetThread(token, args.threadId);
-      return textResult(msgs.map((m) => `From: ${m.from}\nSubject: ${m.subject}\nDate: ${m.date}\n${m.snippet}`).join("\n\n"));
+      return textResult(msgs.map((m) => `From: ${m.from}\nSubject: ${m.subject}\nDate: ${m.date}\n${m.body || m.snippet}`).join("\n\n"));
     }
     case "list_calendar_events": {
       const now = new Date();
@@ -169,6 +187,20 @@ async function callTool(name, args = {}) {
     case "create_meet_link": {
       const { link } = await google.createMeetLink(token);
       return textResult(link);
+    }
+    case "create_calendar_event": {
+      const start = parseWhen(args.whenText);
+      const mins = args.durationMinutes || 30;
+      const end = new Date(start.getTime() + mins * 60_000);
+      const withMeet = args.withMeet !== false;
+      const event = await google.calendarCreateEvent(token, {
+        summary: args.summary,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        attendees: args.attendees || [],
+        withMeet,
+      });
+      return textResult(event.htmlLink || `Event created. ID: ${event.id}`);
     }
     case "search_drive": {
       const files = await google.driveSearch(token, args.query, args.maxResults || 10);
@@ -259,8 +291,10 @@ function start() {
 
     try {
       if (req.method === "initialize") {
+        const clientVer = req.params?.protocolVersion || "2024-11-05";
+        const version = SUPPORTED_VERSIONS.includes(clientVer) ? clientVer : "2024-11-05";
         respond({
-          protocolVersion: "2024-11-05",
+          protocolVersion: version,
           capabilities: { tools: {} },
           serverInfo: { name: "threadmcp", version: "1.0.0" },
         });
@@ -269,13 +303,19 @@ function start() {
       } else if (req.method === "tools/call") {
         const { name, arguments: args } = req.params || {};
         respond(await callTool(name, args));
+      } else if (req.method === "ping") {
+        respond({});
       } else if (req.method === "notifications/initialized") {
         // No response required for notifications.
       } else {
         respond(null, new Error(`Unknown method: ${req.method}`));
       }
     } catch (err) {
-      respond(null, err);
+      if (req.method === "tools/call") {
+        respond({ content: [{ type: "text", text: err.message || String(err) }], isError: true });
+      } else {
+        respond(null, err);
+      }
     }
   });
 }

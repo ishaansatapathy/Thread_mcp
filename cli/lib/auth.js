@@ -169,19 +169,27 @@ async function login() {
 async function refreshAccessToken() {
   const cfg = loadConfig();
   if (!cfg.refreshToken) throw new Error("Not logged in. Run: threadmcp login");
-  const tokens = await httpPostForm(TOKEN_URL, {
-    refresh_token: cfg.refreshToken,
-    client_id: cfg.clientId,
-    client_secret: cfg.clientSecret,
-    grant_type: "refresh_token",
-  });
-  const updated = {
-    ...cfg,
-    accessToken: tokens.access_token,
-    expiresAt: Date.now() + tokens.expires_in * 1000,
-  };
-  saveConfig(updated);
-  return updated.accessToken;
+  try {
+    const tokens = await httpPostForm(TOKEN_URL, {
+      refresh_token: cfg.refreshToken,
+      client_id: cfg.clientId,
+      client_secret: cfg.clientSecret,
+      grant_type: "refresh_token",
+    });
+    const updated = {
+      ...cfg,
+      accessToken: tokens.access_token,
+      expiresAt: Date.now() + tokens.expires_in * 1000,
+    };
+    saveConfig(updated);
+    return updated.accessToken;
+  } catch (err) {
+    const msg = String(err.message || err);
+    if (/invalid_grant|expired|revoked/i.test(msg)) {
+      throw new Error("Google sign-in expired (Testing-mode tokens last 7 days). Run: threadmcp login");
+    }
+    throw err;
+  }
 }
 
 async function getAccessToken() {

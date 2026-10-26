@@ -1,6 +1,6 @@
 {
   "name": "threadmcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Google Workspace CLI — control Gmail, Calendar, Drive, Meet and more from your terminal",
   "bin": {
     "threadmcp": "./gwork.js"

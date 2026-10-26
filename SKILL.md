@@ -19,7 +19,11 @@ Write actions (sending an email, creating an event, creating a Doc/Sheet/Slides)
 ### 1. Install
 
 ```bash
+# from npm (once published)
 npm install -g threadmcp
+
+# or run from source
+git clone <repo-url> && cd google-workspace-mcp/cli && npm link
 ```
 
 ### 2. Sign in (one time, outside Alan AI)
@@ -29,6 +33,8 @@ threadmcp login
 ```
 
 This opens a browser for Google sign-in and saves a token to `~/.gwork.json`. The first run asks for a Google OAuth Client ID/Secret — create one at [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials) (type "Desktop app", redirect URI `http://localhost:9876/callback`).
+
+> **Token expiry:** New Google Cloud projects start in "Testing" mode where refresh tokens expire after 7 days. Re-run `threadmcp login` if your token stops working.
 
 ### 3. Add to Alan AI's MCP config
 
@@ -52,6 +58,7 @@ This opens a browser for Google sign-in and saves a token to `~/.gwork.json`. Th
 | `get_thread` | Read a full email thread |
 | `list_calendar_events` | List upcoming events |
 | `create_meet_link` | Generate a Meet link |
+| `create_calendar_event` | Schedule a Calendar event |
 | `search_drive` | Search Google Drive |
 | `read_drive_file` | Read a Drive file's content |
 | `read_doc` / `create_doc` | Read or create a Google Doc |
@@ -64,6 +71,8 @@ This opens a browser for Google sign-in and saves a token to `~/.gwork.json`. Th
 ## Example prompts
 
 > "What's urgent in my inbox?"
+
+> "Schedule a call with Rahul tomorrow at 3pm"
 
 > "What's on my calendar today?"
 

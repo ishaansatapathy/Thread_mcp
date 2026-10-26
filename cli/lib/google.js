@@ -29,9 +29,10 @@ function header(headers, name) {
 
 // ── Gmail ──────────────────────────────────────────────────────────────────
 
-async function gmailList(token, { query = "", maxResults = 10 } = {}) {
+async function gmailList(token, { query = "", maxResults = 10, labels } = {}) {
   const q = query ? `&q=${encodeURIComponent(query)}` : "";
-  const list = await g(`${GMAIL}/messages?maxResults=${maxResults}${q}`, token);
+  const l = labels ? `&labelIds=${encodeURIComponent(Array.isArray(labels) ? labels.join(",") : labels)}` : "";
+  const list = await g(`${GMAIL}/messages?maxResults=${maxResults}${q}${l}`, token);
   const ids = (list.messages || []).map((m) => m.id);
   const messages = await Promise.all(
     ids.map((id) =>
@@ -52,16 +53,28 @@ function gmailSearch(token, query, maxResults = 10) {
   return gmailList(token, { query, maxResults });
 }
 
+function extractBody(payload) {
+  if (payload.body?.data) {
+    return Buffer.from(payload.body.data, "base64url").toString("utf8").trim();
+  }
+  if (payload.parts) {
+    return payload.parts
+      .filter((p) => p.mimeType === "text/plain")
+      .map((p) => (p.body?.data ? Buffer.from(p.body.data, "base64url").toString("utf8").trim() : ""))
+      .filter(Boolean)
+      .join("\n---\n");
+  }
+  return "";
+}
+
 async function gmailGetThread(token, threadId) {
-  const thread = await g(
-    `${GMAIL}/threads/${threadId}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
-    token,
-  );
+  const thread = await g(`${GMAIL}/threads/${threadId}?format=full`, token);
   return thread.messages.map((m) => ({
     from: header(m.payload.headers, "From"),
     subject: header(m.payload.headers, "Subject"),
     date: header(m.payload.headers, "Date"),
     snippet: m.snippet,
+    body: extractBody(m.payload),
   }));
 }
 

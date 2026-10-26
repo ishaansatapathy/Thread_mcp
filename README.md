@@ -171,7 +171,12 @@ No server, no database — `threadmcp` is a single Node.js process that holds yo
 | `gmail.readonly` | List and search inbox |
 | `gmail.send` | Send a drafted email (always asks to confirm) |
 | `calendar` | Read and create events / Meet links |
-| `drive.readonly` | Search and surface files by name |
+| `drive.readonly` | Search and read files by name/content |
+| `documents` | Read and create Google Docs |
+| `spreadsheets` | Read and create Google Sheets |
+| `presentations` | Read and create Google Slides |
+| `forms.body.readonly` | Read Form questions |
+| `forms.responses.readonly` | Read Form response counts |
 | `classroom.courses.readonly` | List active courses |
 | `classroom.coursework.me.readonly` | List due assignments |
 

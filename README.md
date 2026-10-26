@@ -101,6 +101,19 @@ threadmcp cal create "<title>" <when>       # e.g. "Team sync" tomorrow 3pm — 
 threadmcp meet                              # create a Meet link
 
 threadmcp drive find <query>                # search Drive by filename
+threadmcp drive read <fileId>               # read a file's text content
+
+threadmcp doc read <documentId>             # read a Google Doc
+threadmcp doc create "<title>" <content>    # create a Doc — asks to confirm
+
+threadmcp sheet read <spreadsheetId> [range]        # read cell values (default A1:Z100)
+threadmcp sheet create "<title>" <row,of,values>    # create a Sheet — asks to confirm
+
+threadmcp slides read <presentationId>              # read slide titles + text
+threadmcp slides create "<title>" <bodyText>         # create a deck — asks to confirm
+
+threadmcp forms read <formId>               # read form questions
+threadmcp forms responses <formId>          # response count
 
 threadmcp classroom                         # due assignments, active courses
 

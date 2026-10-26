@@ -87,4 +87,90 @@ async function searchCode(token, query, maxResults = 10) {
   }));
 }
 
-module.exports = { listRepos, listIssues, createIssue, listPullRequests, commentOnPR, searchCode };
+// ── Context Graph (GraphQL) ──────────────────────────────────────────────────
+// One GraphQL call pulls open PRs, the files each touches, and each PR's
+// linked issues — a lightweight relationship graph with no database behind
+// it. Every call recomputes it fresh from the live repo state.
+
+const CONTEXT_GRAPH_QUERY = `
+query($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequests(states: OPEN, first: 20, orderBy: { field: UPDATED_AT, direction: DESC }) {
+      nodes {
+        number
+        title
+        url
+        author { login }
+        headRefName
+        baseRefName
+        updatedAt
+        files(first: 50) {
+          nodes { path }
+        }
+        closingIssuesReferences(first: 5) {
+          nodes { number title url }
+        }
+      }
+    }
+  }
+}`;
+
+async function graphql(token, query, variables) {
+  const res = await fetch(`${GITHUB}/graphql`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ query, variables }),
+  });
+  const json = await res.json();
+  if (!res.ok || json.errors) {
+    const msg = json.errors?.map((e) => e.message).join("; ") || `HTTP ${res.status}`;
+    throw new Error(`GitHub GraphQL error: ${msg}`);
+  }
+  return json.data;
+}
+
+async function getRepoContextGraph(token, owner, repo) {
+  const data = await graphql(token, CONTEXT_GRAPH_QUERY, { owner, repo });
+  const prNodes = data.repository?.pullRequests?.nodes || [];
+
+  const prs = prNodes.map((p) => ({
+    number: p.number,
+    title: p.title,
+    url: p.url,
+    author: p.author?.login || "",
+    headRef: p.headRefName,
+    baseRef: p.baseRefName,
+    updatedAt: p.updatedAt,
+    files: (p.files?.nodes || []).map((f) => f.path),
+    linkedIssues: (p.closingIssuesReferences?.nodes || []).map((i) => ({
+      number: i.number,
+      title: i.title,
+      url: i.url,
+    })),
+  }));
+
+  // Build file -> PRs map; any file touched by 2+ open PRs is a potential conflict.
+  const fileToPRs = new Map();
+  for (const pr of prs) {
+    for (const file of pr.files) {
+      if (!fileToPRs.has(file)) fileToPRs.set(file, []);
+      fileToPRs.get(file).push({ number: pr.number, title: pr.title, author: pr.author });
+    }
+  }
+
+  const conflicts = [...fileToPRs.entries()]
+    .filter(([, touchedBy]) => touchedBy.length > 1)
+    .map(([file, touchedBy]) => ({ file, prs: touchedBy }));
+
+  return { prs, conflicts };
+}
+
+module.exports = {
+  listRepos,
+  listIssues,
+  createIssue,
+  listPullRequests,
+  commentOnPR,
+  searchCode,
+  getRepoContextGraph,
+};

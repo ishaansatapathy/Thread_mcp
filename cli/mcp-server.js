@@ -330,6 +330,16 @@ const TOOLS = [
       properties: { query: { type: "string" }, maxResults: { type: "number" } },
     },
   },
+  {
+    name: "get_repo_context_graph",
+    description:
+      "Build a live relationship graph of a repo's open PRs — who's touching which files, each PR's linked issues, and which files are being edited by more than one open PR (a likely merge conflict before anyone pushes). Computed fresh each call, no database.",
+    inputSchema: {
+      type: "object",
+      required: ["owner", "repo"],
+      properties: { owner: { type: "string" }, repo: { type: "string" } },
+    },
+  },
   // ── Jira ──
   {
     name: "list_jira_issues",
@@ -696,6 +706,30 @@ async function callTool(name, args = {}) {
       const results = await github.searchCode(ghToken, args.query, args.maxResults || 10);
       if (!results.length) return textResult(`No code matching "${args.query}".`);
       return textResult(results.map((r) => `${r.repo}: ${r.path}\n  ${r.url}`).join("\n"));
+    }
+    case "get_repo_context_graph": {
+      const ghToken = await auth.getGithubToken();
+      const graph = await github.getRepoContextGraph(ghToken, args.owner, args.repo);
+      const lines = [`${graph.prs.length} open PR(s) in ${args.owner}/${args.repo}`];
+
+      for (const pr of graph.prs) {
+        lines.push(`\n#${pr.number} "${pr.title}" by ${pr.author} (${pr.headRef} → ${pr.baseRef})`);
+        if (pr.linkedIssues.length) {
+          lines.push(`  linked: ${pr.linkedIssues.map((i) => `#${i.number} ${i.title}`).join(", ")}`);
+        }
+        lines.push(`  files: ${pr.files.length}`);
+      }
+
+      if (graph.conflicts.length) {
+        lines.push(`\n⚠ ${graph.conflicts.length} file(s) touched by more than one open PR:`);
+        for (const c of graph.conflicts) {
+          lines.push(`  ${c.file} — ${c.prs.map((p) => `#${p.number} (${p.author})`).join(", ")}`);
+        }
+      } else {
+        lines.push("\nNo file overlaps between open PRs.");
+      }
+
+      return textResult(lines.join("\n"));
     }
     // ── Jira ──
     case "list_jira_issues": {

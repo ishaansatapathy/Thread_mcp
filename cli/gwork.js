@@ -465,8 +465,25 @@ const commands = {
       const results = await github.searchCode(token, query);
       if (!results.length) return console.log("No results.");
       for (const r of results) console.log(`${r.repo}: ${r.path}\n  ${r.url}`);
+    } else if (sub === "graph") {
+      const [owner, repo] = args.slice(1);
+      if (!owner || !repo) return console.error("Usage: threadmcp github graph <owner> <repo>");
+      printHeader(`Context Graph: ${owner}/${repo}`);
+      const graph = await github.getRepoContextGraph(token, owner, repo);
+      console.log(`${graph.prs.length} open PR(s)`);
+      for (const pr of graph.prs) {
+        console.log(`\n#${pr.number} "${pr.title}" by ${pr.author} (${pr.headRef} → ${pr.baseRef})`);
+        if (pr.linkedIssues.length) console.log(`  linked: ${pr.linkedIssues.map((i) => `#${i.number} ${i.title}`).join(", ")}`);
+        console.log(`  files: ${pr.files.length}`);
+      }
+      if (graph.conflicts.length) {
+        console.log(`\n\x1b[33m⚠ ${graph.conflicts.length} file(s) touched by more than one open PR:\x1b[0m`);
+        for (const c of graph.conflicts) console.log(`  ${c.file} — ${c.prs.map((p) => `#${p.number} (${p.author})`).join(", ")}`);
+      } else {
+        console.log("\nNo file overlaps between open PRs.");
+      }
     } else {
-      console.error("Usage: threadmcp github [repos|issues|issue create|prs|comment|search]");
+      console.error("Usage: threadmcp github [repos|issues|issue create|prs|comment|search|graph]");
     }
   },
 

@@ -196,6 +196,42 @@ async function callTool(name, args = {}) {
         );
       return textResult(lines.join("\n"));
     }
+    case "read_drive_file": {
+      const file = await google.driveReadFile(token, args.fileId);
+      return textResult(`${file.name} (${file.mimeType})\n\n${file.content}`);
+    }
+    case "read_doc": {
+      const doc = await google.docsRead(token, args.documentId);
+      return textResult(`${doc.title}\n\n${doc.text}`);
+    }
+    case "create_doc": {
+      const doc = await google.docsCreate(token, { title: args.title, content: args.content });
+      return textResult(doc.url);
+    }
+    case "read_sheet": {
+      const rows = await google.sheetsRead(token, args.spreadsheetId, args.range);
+      return textResult(rows.map((r) => r.join("\t")).join("\n"));
+    }
+    case "create_sheet": {
+      const sheet = await google.sheetsCreate(token, { title: args.title, rows: args.rows });
+      return textResult(sheet.url);
+    }
+    case "read_slides": {
+      const deck = await google.slidesRead(token, args.presentationId);
+      return textResult(`${deck.title}\n\n${deck.slides.join("\n")}`);
+    }
+    case "create_slides": {
+      const deck = await google.slidesCreate(token, { title: args.title, bodyText: args.bodyText });
+      return textResult(deck.url);
+    }
+    case "read_form": {
+      const form = await google.formsRead(token, args.formId);
+      return textResult(`${form.title}\n\n${form.questions.map((q, i) => `${i + 1}. ${q}`).join("\n")}`);
+    }
+    case "get_form_responses": {
+      const responses = await google.formsResponses(token, args.formId);
+      return textResult(`${responses.length} response(s) received.`);
+    }
     default:
       throw new Error(`Unknown tool: ${name}`);
   }

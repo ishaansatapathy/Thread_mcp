@@ -1,0 +1,69 @@
+# Google Workspace for Alan AI
+
+Gives Alan AI direct access to your Gmail, Calendar, Drive, Meet and Classroom — through a small local MCP server backed by your own Google OAuth login. No backend, no database.
+
+## What this skill does
+
+- **Gmail** — search inbox, read threads
+- **Calendar** — list events, create meetings, generate Meet links
+- **Drive** — search files by name
+- **Classroom** — check due assignments across active courses
+- **Brief** — a combined daily summary (calendar + inbox + classroom)
+
+Write actions (sending an email, creating an event) are available from the CLI with a confirmation prompt; the MCP tools exposed to Alan AI cover reads plus Meet-link creation.
+
+## Setup
+
+### 1. Install
+
+```bash
+npm install -g threadmcp
+```
+
+### 2. Sign in (one time, outside Alan AI)
+
+```bash
+threadmcp login
+```
+
+This opens a browser for Google sign-in and saves a token to `~/.gwork.json`. The first run asks for a Google OAuth Client ID/Secret — create one at [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials) (type "Desktop app", redirect URI `http://localhost:9876/callback`).
+
+### 3. Add to Alan AI's MCP config
+
+```json
+{
+  "mcpServers": {
+    "google-workspace": {
+      "command": "npx",
+      "args": ["-y", "threadmcp", "mcp"]
+    }
+  }
+}
+```
+
+## Available Tools
+
+| Tool | Description |
+|---|---|
+| `list_inbox` | List recent Gmail threads |
+| `search_inbox` | Search Gmail |
+| `get_thread` | Read a full email thread |
+| `list_calendar_events` | List upcoming events |
+| `create_meet_link` | Generate a Meet link |
+| `search_drive` | Search Google Drive |
+| `list_classroom_due_work` | Check Classroom assignments |
+| `get_daily_brief` | Combined daily summary |
+
+## Example prompts
+
+> "What's urgent in my inbox?"
+
+> "What's on my calendar today?"
+
+> "Create a Meet link for a quick call"
+
+> "Search my Drive for the Q3 report"
+
+> "What assignments are due this week?"
+
+> "Brief me on today"

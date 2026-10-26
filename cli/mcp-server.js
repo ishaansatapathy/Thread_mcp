@@ -296,7 +296,7 @@ function start() {
         respond({
           protocolVersion: version,
           capabilities: { tools: {} },
-          serverInfo: { name: "threadmcp", version: "1.0.0" },
+          serverInfo: { name: "threadmcp", version: require("./package.json").version },
         });
       } else if (req.method === "tools/list") {
         respond({ tools: TOOLS });

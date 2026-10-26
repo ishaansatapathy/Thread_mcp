@@ -137,10 +137,10 @@ const commands = {
       });
       printEvents(events);
     } else if (sub === "create") {
-      const rest = args.slice(1).join(" ");
-      const match = rest.match(/^"([^"]+)"\s+(.+)$/);
-      if (!match) return console.error('Usage: threadmcp cal create "<title>" <when>   e.g. "Team sync" tomorrow 3pm');
-      const [, title, whenText] = match;
+      const title = args[1];
+      const whenText = args.slice(2).join(" ");
+      if (!title || !whenText)
+        return console.error('Usage: threadmcp cal create "<title>" <when>   e.g. "Team sync" tomorrow 3pm');
       const start = parseWhen(whenText);
       const end = new Date(start.getTime() + 30 * 60 * 1000);
       printHeader(`Create: ${title}`);
@@ -202,10 +202,8 @@ const commands = {
       const file = await google.driveReadFile(token, fileId);
       console.log(`${file.name} (${file.mimeType})\n\n${file.content}`);
     } else if (sub === "mkdir") {
-      const rest = args.slice(1).join(" ");
-      const match = rest.match(/^"([^"]+)"$/);
-      if (!match) return console.error('Usage: threadmcp drive mkdir "<name>"');
-      const [, name] = match;
+      const name = args.slice(1).join(" ");
+      if (!name) return console.error('Usage: threadmcp drive mkdir "<name>"');
       printHeader(`Create Folder: ${name}`);
       const confirm = await ask("Create this folder? (y/n): ");
       if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
@@ -234,10 +232,9 @@ const commands = {
       const doc = await google.docsRead(token, documentId);
       console.log(`${doc.title}\n\n${doc.text}`);
     } else if (sub === "create") {
-      const rest = args.slice(1).join(" ");
-      const match = rest.match(/^"([^"]+)"\s*(.*)$/);
-      if (!match) return console.error('Usage: threadmcp doc create "<title>" <content>');
-      const [, title, content] = match;
+      const title = args[1];
+      const content = args.slice(2).join(" ");
+      if (!title) return console.error('Usage: threadmcp doc create "<title>" <content>');
       printHeader(`Create Doc: ${title}`);
       const confirm = await ask("Create this doc? (y/n): ");
       if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
@@ -260,10 +257,9 @@ const commands = {
       if (!rows.length) return console.log("No data.");
       for (const row of rows) console.log(row.join("\t"));
     } else if (sub === "create") {
-      const rest = args.slice(1).join(" ");
-      const match = rest.match(/^"([^"]+)"\s*(.*)$/);
-      if (!match) return console.error('Usage: threadmcp sheet create "<title>" <row,of,values>');
-      const [, title, rowText] = match;
+      const title = args[1];
+      const rowText = args.slice(2).join(" ");
+      if (!title) return console.error('Usage: threadmcp sheet create "<title>" <row,of,values>');
       const rows = rowText ? [rowText.split(",").map((v) => v.trim())] : [];
       printHeader(`Create Sheet: ${title}`);
       const confirm = await ask("Create this sheet? (y/n): ");
@@ -285,10 +281,9 @@ const commands = {
       const deck = await google.slidesRead(token, presentationId);
       console.log(`${deck.title}\n\n${deck.slides.join("\n")}`);
     } else if (sub === "create") {
-      const rest = args.slice(1).join(" ");
-      const match = rest.match(/^"([^"]+)"\s*(.*)$/);
-      if (!match) return console.error('Usage: threadmcp slides create "<title>" <bodyText>');
-      const [, title, bodyText] = match;
+      const title = args[1];
+      const bodyText = args.slice(2).join(" ");
+      if (!title) return console.error('Usage: threadmcp slides create "<title>" <bodyText>');
       printHeader(`Create Slides: ${title}`);
       const confirm = await ask("Create this presentation? (y/n): ");
       if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
@@ -340,10 +335,9 @@ const commands = {
         console.log(`    \x1b[2mid: ${t.id}  list: ${t.tasklistId}\x1b[0m`);
       }
     } else if (sub === "create") {
-      const rest = args.slice(1).join(" ");
-      const match = rest.match(/^"([^"]+)"(?:\s+(.+))?$/);
-      if (!match) return console.error('Usage: threadmcp tasks create "<title>" [due]');
-      const [, title, dueText] = match;
+      const title = args[1];
+      const dueText = args.slice(2).join(" ");
+      if (!title) return console.error('Usage: threadmcp tasks create "<title>" [due]');
       const due = dueText ? (dueText.match(/^\d{4}-\d{2}-\d{2}/) ? dueText : parseWhen(dueText).toISOString()) : undefined;
       printHeader(`Create Task: ${title}`);
       const confirm = await ask("Create this task? (y/n): ");

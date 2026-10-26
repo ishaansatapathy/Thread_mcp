@@ -215,6 +215,22 @@ async function docsRead(token, documentId) {
   return { title: doc.title, text: extractDocText(doc) };
 }
 
+async function docsCreate(token, { title, content }) {
+  const doc = await g(DOCS, token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+  if (content) {
+    await g(`${DOCS}/${doc.documentId}:batchUpdate`, token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requests: [{ insertText: { location: { index: 1 }, text: content } }] }),
+    });
+  }
+  return { documentId: doc.documentId, url: `https://docs.google.com/document/d/${doc.documentId}/edit` };
+}
+
 module.exports = {
   gmailList,
   gmailSearch,
@@ -227,4 +243,5 @@ module.exports = {
   driveReadFile,
   classroomDueWork,
   docsRead,
+  docsCreate,
 };

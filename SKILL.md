@@ -53,6 +53,11 @@ This opens a browser for Google sign-in and saves a token to `~/.gwork.json`. Th
 | `list_calendar_events` | List upcoming events |
 | `create_meet_link` | Generate a Meet link |
 | `search_drive` | Search Google Drive |
+| `read_drive_file` | Read a Drive file's content |
+| `read_doc` / `create_doc` | Read or create a Google Doc |
+| `read_sheet` / `create_sheet` | Read or create a Google Sheet |
+| `read_slides` / `create_slides` | Read or create a Slides deck |
+| `read_form` / `get_form_responses` | Read a Form's questions / response count |
 | `list_classroom_due_work` | Check Classroom assignments |
 | `get_daily_brief` | Combined daily summary |
 

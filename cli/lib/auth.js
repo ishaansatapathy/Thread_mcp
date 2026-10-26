@@ -15,9 +15,10 @@ const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.modify",
   "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/calendar",
-  "https://www.googleapis.com/auth/drive.readonly",
+  "https://www.googleapis.com/auth/drive",
   "https://www.googleapis.com/auth/classroom.courses.readonly",
   "https://www.googleapis.com/auth/classroom.coursework.me.readonly",
   "https://www.googleapis.com/auth/documents",
@@ -25,6 +26,8 @@ const SCOPES = [
   "https://www.googleapis.com/auth/presentations",
   "https://www.googleapis.com/auth/forms.body.readonly",
   "https://www.googleapis.com/auth/forms.responses.readonly",
+  "https://www.googleapis.com/auth/tasks",
+  "https://www.googleapis.com/auth/contacts",
 ].join(" ");
 
 function loadConfig() {

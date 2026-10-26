@@ -8,6 +8,8 @@ const DOCS = "https://docs.googleapis.com/v1/documents";
 const SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
 const SLIDES = "https://slides.googleapis.com/v1/presentations";
 const FORMS = "https://forms.googleapis.com/v1/forms";
+const TASKS = "https://tasks.googleapis.com/tasks/v1";
+const CONTACTS = "https://people.googleapis.com/v1";
 
 async function g(url, token, opts = {}) {
   const res = await fetch(url, {
@@ -106,6 +108,28 @@ function gmailSend(token, { to, subject, body }) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ raw }),
+  });
+}
+
+function markRead(token, messageId) {
+  return g(`${GMAIL}/messages/${messageId}/modify`, token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ removeLabelIds: ["UNREAD"] }),
+  });
+}
+
+function archiveEmail(token, messageId) {
+  return g(`${GMAIL}/messages/${messageId}/modify`, token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ removeLabelIds: ["INBOX"] }),
+  });
+}
+
+function trashEmail(token, messageId) {
+  return g(`${GMAIL}/messages/${messageId}/trash`, token, {
+    method: "POST",
   });
 }
 
@@ -213,6 +237,22 @@ function calendarCreateEvent(token, { summary, start, end, attendees = [], withM
   });
 }
 
+function deleteEvent(token, eventId) {
+  return g(`${CALENDAR}/calendars/primary/events/${eventId}`, token, { method: "DELETE" });
+}
+
+function updateEvent(token, eventId, { summary, start, end } = {}) {
+  const body = {};
+  if (summary) body.summary = summary;
+  if (start) body.start = { dateTime: start };
+  if (end) body.end = { dateTime: end };
+  return g(`${CALENDAR}/calendars/primary/events/${eventId}`, token, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 async function createMeetLink(token) {
   const now = new Date();
   const end = new Date(now.getTime() + 30 * 60 * 1000);
@@ -270,6 +310,24 @@ async function driveReadFile(token, fileId) {
     throw new Error(`Google API error (${res.status}): ${text.slice(0, 300)}`);
   }
   return { name: meta.name, mimeType: meta.mimeType, content: await res.text() };
+}
+
+async function createFolder(token, name, parentId) {
+  const body = { name, mimeType: "application/vnd.google-apps.folder" };
+  if (parentId) body.parents = [parentId];
+  return g(`${DRIVE}/files`, token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function shareFile(token, fileId, email, role = "reader") {
+  return g(`${DRIVE}/files/${fileId}/permissions`, token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "user", role, emailAddress: email }),
+  });
 }
 
 // ── Classroom ──────────────────────────────────────────────────────────────
@@ -466,21 +524,123 @@ async function getPriorityInbox(token, maxResults = 10) {
     .slice(0, maxResults);
 }
 
+// ── Tasks ───────────────────────────────────────────────────────────────────
+
+async function _defaultTasklist(token) {
+  const res = await g(`${TASKS}/users/@me/lists`, token);
+  return (res.items || [])[0]?.id || null;
+}
+
+async function listTasks(token, maxResults = 20) {
+  const tasklistId = await _defaultTasklist(token);
+  if (!tasklistId) return [];
+  const res = await g(
+    `${TASKS}/lists/${tasklistId}/tasks?maxResults=${maxResults}&showCompleted=false`,
+    token,
+  );
+  return (res.items || []).map((t) => ({
+    id: t.id,
+    title: t.title,
+    due: t.due,
+    notes: t.notes,
+    tasklistId,
+  }));
+}
+
+async function createTask(token, { title, notes, due }) {
+  const tasklistId = await _defaultTasklist(token);
+  if (!tasklistId) throw new Error("No task list found. Create one at https://tasks.google.com");
+  const body = { title };
+  if (notes) body.notes = notes;
+  if (due) body.due = new Date(due).toISOString();
+  return g(`${TASKS}/lists/${tasklistId}/tasks`, token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function completeTask(token, taskId, tasklistId) {
+  return g(`${TASKS}/lists/${tasklistId}/tasks/${taskId}`, token, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "completed" }),
+  });
+}
+
+// ── Contacts ────────────────────────────────────────────────────────────────
+
+async function findContact(token, name) {
+  const params = new URLSearchParams({
+    query: name,
+    readMask: "names,emailAddresses",
+  });
+  try {
+    const res = await g(`${CONTACTS}/people:searchContacts?${params}`, token);
+    if (res.results?.length) {
+      return (res.results || []).map((r) => ({
+        name: (r.person?.names || [{}])[0]?.displayName || name,
+        email: (r.person?.emailAddresses || [{}])[0]?.value || "",
+      }));
+    }
+  } catch { /* fall through to connections fallback */ }
+
+  // Fallback: list connections and filter client-side
+  const connRes = await g(
+    `${CONTACTS}/people/me/connections?personFields=names,emailAddresses&pageSize=200`,
+    token,
+  );
+  const nameLower = name.toLowerCase();
+  return ((connRes.connections || []))
+    .filter((p) => {
+      const display = ((p.names || [{}])[0]?.displayName || "").toLowerCase();
+      return display.includes(nameLower);
+    })
+    .map((p) => ({
+      name: (p.names || [{}])[0]?.displayName || "",
+      email: (p.emailAddresses || [{}])[0]?.value || "",
+    }));
+}
+
+// ── Smart Analytics ─────────────────────────────────────────────────────────
+
+async function lastInteraction(token, personName) {
+  const items = await gmailList(token, {
+    query: `from:"${personName}" OR to:"${personName}"`,
+    maxResults: 1,
+  });
+  if (!items.length) return null;
+  const m = items[0];
+  return { from: m.from, subject: m.subject, snippet: m.snippet, threadId: m.threadId };
+}
+
 module.exports = {
   gmailList,
   gmailSearch,
   gmailGetThread,
   gmailSend,
+  markRead,
+  archiveEmail,
+  trashEmail,
   calendarList,
   calendarCreateEvent,
+  deleteEvent,
+  updateEvent,
   createMeetLink,
   checkConflicts,
   getFreeSlots,
   driveSearch,
   driveContentSearch,
   driveReadFile,
+  createFolder,
+  shareFile,
   classroomDueWork,
   getPriorityInbox,
+  listTasks,
+  createTask,
+  completeTask,
+  findContact,
+  lastInteraction,
   docsRead,
   docsCreate,
   sheetsRead,

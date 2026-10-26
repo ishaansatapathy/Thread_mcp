@@ -4,15 +4,17 @@ Gives Alan AI direct access to your Gmail, Calendar, Drive, Meet and Classroom �
 
 ## What this skill does
 
-- **Gmail** — search inbox, read threads
-- **Calendar** — list events, create meetings, generate Meet links
-- **Drive** — search files by name, read file content
+- **Gmail** — search inbox, read threads, mark read, archive, trash
+- **Calendar** — list events, create/update/delete meetings, generate Meet links
+- **Drive** — search files by name, read content, create folders, share files
 - **Docs / Sheets / Slides** — read content, create new files
 - **Forms** — read questions, check response counts
 - **Classroom** — check due assignments across active courses
+- **Tasks** — list, create, and complete Google Tasks
+- **Contacts** — search your Google Contacts by name
 - **Brief** — a combined daily summary (calendar + inbox + classroom)
 
-Write actions (sending an email, creating an event, creating a Doc/Sheet/Slides) are available from the CLI with a confirmation prompt, and as MCP tools for Alan AI.
+Write actions (send, archive, trash, delete, share, create) are available from the CLI with a confirmation prompt, and as MCP tools for Alan AI.
 
 ## Setup
 
@@ -70,8 +72,22 @@ This opens a browser for Google sign-in and saves a token to `~/.gwork.json`. Th
 | `read_form` / `get_form_responses` | Read a Form's questions / response count |
 | `list_classroom_due_work` | Check Classroom assignments |
 | `get_daily_brief` | Combined daily summary |
+| `mark_read` / `archive_email` / `trash_email` | Manage inbox message state |
+| `delete_event` / `update_event` | Delete or update a Calendar event |
+| `create_folder` / `share_file` | Create a Drive folder / share with someone |
+| `list_tasks` / `create_task` / `complete_task` | Manage Google Tasks |
+| `find_contact` | Search your Google Contacts |
+| `last_interaction` | Most recent email exchange with a person |
 
 ## Example prompts
+
+> "When did I last hear from Rahul?"
+
+> "Create a task to call the investor tomorrow"
+
+> "Share the Q3 report with priya@company.com"
+
+> "Add a folder called Hackathon to my Drive"
 
 > "When am I free for a 30-minute call tomorrow?"
 

@@ -119,15 +119,22 @@ threadmcp mail inbox                        # recent emails
 threadmcp mail search <query>               # Gmail search syntax
 threadmcp mail read <threadId>              # read a thread
 threadmcp mail send <to> <subject> <body>   # asks to confirm before sending
+threadmcp mail markread <messageId>         # mark as read
+threadmcp mail archive <messageId>          # archive (asks to confirm)
+threadmcp mail trash <messageId>            # trash (asks to confirm)
 
 threadmcp cal today                         # today's events
 threadmcp cal week                          # this week's events
 threadmcp cal create "<title>" <when>       # e.g. "Team sync" tomorrow 3pm — asks to confirm
+threadmcp cal delete <eventId>              # delete event (asks to confirm)
+threadmcp cal update <eventId> <field> <value>  # update title/time
 
 threadmcp meet                              # create a Meet link
 
 threadmcp drive find <query>                # search Drive by filename
 threadmcp drive read <fileId>               # read a file's text content
+threadmcp drive mkdir "<name>"              # create a folder
+threadmcp drive share <fileId> <email> [role]  # share with someone
 
 threadmcp doc read <documentId>             # read a Google Doc
 threadmcp doc create "<title>" <content>    # create a Doc — asks to confirm
@@ -142,6 +149,13 @@ threadmcp forms read <formId>               # read form questions
 threadmcp forms responses <formId>          # response count
 
 threadmcp classroom                         # due assignments, active courses
+
+threadmcp tasks list                        # active tasks
+threadmcp tasks create "<title>" [due]      # add a task — asks to confirm
+threadmcp tasks done <taskId> <tasklistId>  # complete a task
+
+threadmcp contact find <name>               # search contacts
+threadmcp contact last <name>               # last email with a person
 
 threadmcp brief                             # combined daily summary
 
@@ -177,6 +191,18 @@ Every write action (send email, create event) prints what it's about to do and a
 | `get_free_slots` | Find open time slots in your calendar (e.g. "when am I free today?") |
 | `search_drive_content` | Deep-search inside file contents (Docs, PDFs, Sheets), not just filenames |
 | `get_priority_inbox` | Smart inbox — ranks messages by urgency (unread, recency, keywords) |
+| `mark_read` | Mark a message as read |
+| `archive_email` | Archive a message (remove from Inbox) |
+| `trash_email` | Move a message to Trash |
+| `delete_event` | Delete a Calendar event |
+| `update_event` | Update a Calendar event's title/time |
+| `create_folder` | Create a Drive folder |
+| `share_file` | Share a Drive file/folder with someone |
+| `list_tasks` | List active Google Tasks |
+| `create_task` | Add a Google Task |
+| `complete_task` | Mark a Google Task as done |
+| `find_contact` | Search Google Contacts by name |
+| `last_interaction` | Find your most recent email exchange with someone |
 
 ---
 
@@ -199,9 +225,10 @@ No server, no database — `threadmcp` is a single Node.js process that holds yo
 | Scope | Why |
 |---|---|
 | `gmail.readonly` | List and search inbox |
+| `gmail.modify` | Mark read, archive, trash messages |
 | `gmail.send` | Send a drafted email (always asks to confirm) |
 | `calendar` | Read and create events / Meet links |
-| `drive.readonly` | Search and read files by name/content |
+| `drive` | Search, read, create folders, share files |
 | `documents` | Read and create Google Docs |
 | `spreadsheets` | Read and create Google Sheets |
 | `presentations` | Read and create Google Slides |
@@ -209,6 +236,8 @@ No server, no database — `threadmcp` is a single Node.js process that holds yo
 | `forms.responses.readonly` | Read Form response counts |
 | `classroom.courses.readonly` | List active courses |
 | `classroom.coursework.me.readonly` | List due assignments |
+| `tasks` | Read and create Google Tasks |
+| `contacts` | Search Google Contacts |
 
 ---
 

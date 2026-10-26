@@ -5,8 +5,8 @@
  * Reuses the same Google OAuth token saved by `threadmcp login`.
  * Point Alan AI's MCP config at:
  *   { "command": "npx", "args": ["-y", "@ishaan_satapathy/threadmcp", "mcp"] }
- * 21 tools: Gmail, Calendar, Drive (deep search), Docs, Sheets, Slides, Forms, Classroom +
- *   smart inbox prioritization, conflict detection, free-slot finder.
+ * 33 tools: Gmail, Calendar, Drive (deep search, folders, sharing), Docs, Sheets, Slides,
+ *   Forms, Classroom, Tasks, Contacts, smart inbox, conflict detection, free slots, analytics.
  */
 
 const readline = require("readline");
@@ -179,6 +179,102 @@ const TOOLS = [
       properties: { maxResults: { type: "number", description: "How many to return (default 10)" } },
     },
   },
+  {
+    name: "mark_read",
+    description: "Mark a Gmail message as read by removing the UNREAD label.",
+    inputSchema: { type: "object", required: ["messageId"], properties: { messageId: { type: "string" } } },
+  },
+  {
+    name: "archive_email",
+    description: "Archive a Gmail message by removing it from the INBOX label.",
+    inputSchema: { type: "object", required: ["messageId"], properties: { messageId: { type: "string" } } },
+  },
+  {
+    name: "trash_email",
+    description: "Move a Gmail message to the Trash (soft-delete, recoverable for 30 days).",
+    inputSchema: { type: "object", required: ["messageId"], properties: { messageId: { type: "string" } } },
+  },
+  {
+    name: "delete_event",
+    description: "Permanently delete a Google Calendar event by ID.",
+    inputSchema: { type: "object", required: ["eventId"], properties: { eventId: { type: "string" } } },
+  },
+  {
+    name: "update_event",
+    description: "Update a Calendar event's summary, start time, or end time — pass only what changed.",
+    inputSchema: {
+      type: "object",
+      required: ["eventId"],
+      properties: {
+        eventId: { type: "string" },
+        summary: { type: "string" },
+        start: { type: "string", description: "ISO datetime string" },
+        end: { type: "string", description: "ISO datetime string" },
+      },
+    },
+  },
+  {
+    name: "create_folder",
+    description: "Create a new folder in Google Drive, optionally inside a parent folder.",
+    inputSchema: {
+      type: "object",
+      required: ["name"],
+      properties: { name: { type: "string" }, parentId: { type: "string", description: "Optional parent folder ID" } },
+    },
+  },
+  {
+    name: "share_file",
+    description: "Share a Drive file/folder with a specific person by email address.",
+    inputSchema: {
+      type: "object",
+      required: ["fileId", "email"],
+      properties: {
+        fileId: { type: "string" },
+        email: { type: "string" },
+        role: { type: "string", description: "reader, writer, or commenter (default: reader)" },
+      },
+    },
+  },
+  {
+    name: "list_tasks",
+    description: "List active (uncompleted) tasks from your Google Tasks default list.",
+    inputSchema: {
+      type: "object",
+      properties: { maxResults: { type: "number", description: "How many tasks to return (default 20)" } },
+    },
+  },
+  {
+    name: "create_task",
+    description: "Add a new task to your Google Tasks default list.",
+    inputSchema: {
+      type: "object",
+      required: ["title"],
+      properties: {
+        title: { type: "string" },
+        notes: { type: "string" },
+        due: { type: "string", description: "Due date/time (ISO string or natural like 'tomorrow 5pm')" },
+      },
+    },
+  },
+  {
+    name: "complete_task",
+    description: "Mark a Google Task as completed (done).",
+    inputSchema: {
+      type: "object",
+      required: ["taskId", "tasklistId"],
+      properties: { taskId: { type: "string" }, tasklistId: { type: "string" } },
+    },
+  },
+  {
+    name: "find_contact",
+    description: "Search your Google Contacts by name. Returns matching names and email addresses.",
+    inputSchema: { type: "object", required: ["name"], properties: { name: { type: "string" } } },
+  },
+  {
+    name: "last_interaction",
+    description: "Find the most recent email exchange with a specific person — useful for checking when you last heard from someone.",
+    inputSchema: { type: "object", required: ["personName"], properties: { personName: { type: "string" } } },
+  },
 ];
 
 function textResult(text) {
@@ -339,6 +435,64 @@ async function callTool(name, args = {}) {
     case "get_form_responses": {
       const responses = await google.formsResponses(token, args.formId);
       return textResult(`${responses.length} response(s) received.`);
+    }
+    case "mark_read": {
+      await google.markRead(token, args.messageId);
+      return textResult("Marked as read.");
+    }
+    case "archive_email": {
+      await google.archiveEmail(token, args.messageId);
+      return textResult("Archived.");
+    }
+    case "trash_email": {
+      await google.trashEmail(token, args.messageId);
+      return textResult("Moved to Trash.");
+    }
+    case "delete_event": {
+      await google.deleteEvent(token, args.eventId);
+      return textResult("Event deleted.");
+    }
+    case "update_event": {
+      const updated = await google.updateEvent(token, args.eventId, {
+        summary: args.summary,
+        start: args.start,
+        end: args.end,
+      });
+      return textResult(updated.htmlLink || "Event updated.");
+    }
+    case "create_folder": {
+      const folder = await google.createFolder(token, args.name, args.parentId);
+      return textResult(`Folder created. ID: ${folder.id} — https://drive.google.com/drive/folders/${folder.id}`);
+    }
+    case "share_file": {
+      await google.shareFile(token, args.fileId, args.email, args.role || "reader");
+      return textResult(`Shared with ${args.email} (${args.role || "reader"}).`);
+    }
+    case "list_tasks": {
+      const tasks = await google.listTasks(token, args.maxResults || 20);
+      if (!tasks.length) return textResult("No active tasks.");
+      return textResult(
+        tasks.map((t) => `${t.title}${t.due ? ` — due ${new Date(t.due).toLocaleDateString()}` : ""} (taskId: ${t.id}, list: ${t.tasklistId})`).join("\n"),
+      );
+    }
+    case "create_task": {
+      const due = args.due ? (args.due.match(/^\d{4}-\d{2}-\d{2}/) ? args.due : parseWhen(args.due).toISOString()) : undefined;
+      const task = await google.createTask(token, { title: args.title, notes: args.notes, due });
+      return textResult(`Task created: "${task.title}"${task.due ? ` due ${new Date(task.due).toLocaleString()}` : ""} (id: ${task.id})`);
+    }
+    case "complete_task": {
+      await google.completeTask(token, args.taskId, args.tasklistId);
+      return textResult("Task marked as completed.");
+    }
+    case "find_contact": {
+      const contacts = await google.findContact(token, args.name);
+      if (!contacts.length) return textResult(`No contacts matching "${args.name}".`);
+      return textResult(contacts.map((c) => `${c.name}: ${c.email || "(no email)"}`).join("\n"));
+    }
+    case "last_interaction": {
+      const interaction = await google.lastInteraction(token, args.personName);
+      if (!interaction) return textResult(`No recent emails with "${args.personName}".`);
+      return textResult(`Last interaction with ${interaction.from}:\nSubject: "${interaction.subject}"\n${interaction.snippet}\n(threadId: ${interaction.threadId})`);
     }
     default:
       throw new Error(`Unknown tool: ${name}`);

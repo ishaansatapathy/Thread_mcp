@@ -85,8 +85,29 @@ const commands = {
       if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
       await google.gmailSend(token, { to, subject, body });
       console.log("\x1b[32m✓ Sent.\x1b[0m");
+    } else if (sub === "markread") {
+      const messageId = args[1];
+      if (!messageId) return console.error("Usage: threadmcp mail markread <messageId>");
+      await google.markRead(token, messageId);
+      console.log("\x1b[32m✓ Marked as read.\x1b[0m");
+    } else if (sub === "archive") {
+      const messageId = args[1];
+      if (!messageId) return console.error("Usage: threadmcp mail archive <messageId>");
+      printHeader("Archive");
+      const confirm = await ask("Archive this message? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      await google.archiveEmail(token, messageId);
+      console.log("\x1b[32m✓ Archived.\x1b[0m");
+    } else if (sub === "trash") {
+      const messageId = args[1];
+      if (!messageId) return console.error("Usage: threadmcp mail trash <messageId>");
+      printHeader("Trash");
+      const confirm = await ask("Move this message to Trash? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      await google.trashEmail(token, messageId);
+      console.log("\x1b[32m✓ Moved to Trash.\x1b[0m");
     } else {
-      console.error("Usage: threadmcp mail [inbox|search|read|send]");
+      console.error("Usage: threadmcp mail [inbox|search|read|send|markread|archive|trash]");
     }
   },
 
@@ -132,8 +153,28 @@ const commands = {
         end: end.toISOString(),
       });
       console.log(`\x1b[32m✓ Created.\x1b[0m ${event.htmlLink || ""}`);
+    } else if (sub === "delete") {
+      const eventId = args[1];
+      if (!eventId) return console.error("Usage: threadmcp cal delete <eventId>");
+      printHeader("Delete Event");
+      const confirm = await ask("Permanently delete this event? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      await google.deleteEvent(token, eventId);
+      console.log("\x1b[32m✓ Deleted.\x1b[0m");
+    } else if (sub === "update") {
+      const [eventId, field, ...rest] = args.slice(1);
+      const value = rest.join(" ");
+      if (!eventId || !field) return console.error("Usage: threadmcp cal update <eventId> <summary|start|end> <value>");
+      const updates = {};
+      if (field === "start" || field === "end") updates[field] = parseWhen(value).toISOString();
+      else updates[field] = value;
+      printHeader("Update Event");
+      const confirm = await ask("Update this event? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      const updated = await google.updateEvent(token, eventId, updates);
+      console.log(`\x1b[32m✓ Updated.\x1b[0m ${updated.htmlLink || ""}`);
     } else {
-      console.error("Usage: threadmcp cal [today|week|create]");
+      console.error("Usage: threadmcp cal [today|week|create|delete|update]");
     }
   },
 
@@ -160,8 +201,26 @@ const commands = {
       printHeader("Drive File");
       const file = await google.driveReadFile(token, fileId);
       console.log(`${file.name} (${file.mimeType})\n\n${file.content}`);
+    } else if (sub === "mkdir") {
+      const rest = args.slice(1).join(" ");
+      const match = rest.match(/^"([^"]+)"$/);
+      if (!match) return console.error('Usage: threadmcp drive mkdir "<name>"');
+      const [, name] = match;
+      printHeader(`Create Folder: ${name}`);
+      const confirm = await ask("Create this folder? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      const folder = await google.createFolder(token, name);
+      console.log(`\x1b[32m✓ Created.\x1b[0m https://drive.google.com/drive/folders/${folder.id}`);
+    } else if (sub === "share") {
+      const [fileId, email, role] = args.slice(1);
+      if (!fileId || !email) return console.error("Usage: threadmcp drive share <fileId> <email> [role]");
+      printHeader(`Share with ${email}`);
+      const confirm = await ask(`Share as ${role || "reader"}? (y/n): `);
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      await google.shareFile(token, fileId, email, role || "reader");
+      console.log("\x1b[32m✓ Shared.\x1b[0m");
     } else {
-      console.error("Usage: threadmcp drive [find <query>|read <fileId>]");
+      console.error("Usage: threadmcp drive [find <query>|read <fileId>|mkdir|share]");
     }
   },
 
@@ -268,6 +327,64 @@ const commands = {
     for (const w of work) console.log(`${w.title} (${w.course}) — due ${new Date(w.due).toLocaleString()}`);
   },
 
+  async tasks(args) {
+    const token = await auth.getAccessToken();
+    const sub = args[0];
+    if (sub === "list" || !sub) {
+      printHeader("Tasks");
+      const tasks = await google.listTasks(token, 20);
+      if (!tasks.length) return console.log("No active tasks.");
+      for (const t of tasks) {
+        console.log(`  ${t.title}${t.due ? ` — due ${new Date(t.due).toLocaleDateString()}` : ""}`);
+        if (t.notes) console.log(`    \x1b[2m${t.notes}\x1b[0m`);
+        console.log(`    \x1b[2mid: ${t.id}  list: ${t.tasklistId}\x1b[0m`);
+      }
+    } else if (sub === "create") {
+      const rest = args.slice(1).join(" ");
+      const match = rest.match(/^"([^"]+)"(?:\s+(.+))?$/);
+      if (!match) return console.error('Usage: threadmcp tasks create "<title>" [due]');
+      const [, title, dueText] = match;
+      const due = dueText ? (dueText.match(/^\d{4}-\d{2}-\d{2}/) ? dueText : parseWhen(dueText).toISOString()) : undefined;
+      printHeader(`Create Task: ${title}`);
+      const confirm = await ask("Create this task? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      const task = await google.createTask(token, { title, due });
+      console.log(`\x1b[32m✓ Created.\x1b[0m "${task.title}"${task.due ? ` due ${new Date(task.due).toLocaleString()}` : ""}`);
+    } else if (sub === "done") {
+      const [taskId, tasklistId] = args.slice(1);
+      if (!taskId || !tasklistId) return console.error("Usage: threadmcp tasks done <taskId> <tasklistId>");
+      printHeader("Complete Task");
+      const confirm = await ask("Mark this task as completed? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      await google.completeTask(token, taskId, tasklistId);
+      console.log("\x1b[32m✓ Task completed.\x1b[0m");
+    } else {
+      console.error("Usage: threadmcp tasks [list|create|done]");
+    }
+  },
+
+  async contact(args) {
+    const token = await auth.getAccessToken();
+    const sub = args[0];
+    if (sub === "find") {
+      const name = args.slice(1).join(" ");
+      if (!name) return console.error("Usage: threadmcp contact find <name>");
+      printHeader(`Contact: ${name}`);
+      const contacts = await google.findContact(token, name);
+      if (!contacts.length) return console.log(`No contacts matching "${name}".`);
+      for (const c of contacts) console.log(`  ${c.name}: ${c.email || "(no email)"}`);
+    } else if (sub === "last") {
+      const name = args.slice(1).join(" ");
+      if (!name) return console.error("Usage: threadmcp contact last <name>");
+      printHeader(`Last Interaction: ${name}`);
+      const interaction = await google.lastInteraction(token, name);
+      if (!interaction) return console.log(`No recent emails with "${name}".`);
+      console.log(`From: ${interaction.from}\nSubject: "${interaction.subject}"\n${interaction.snippet}\n\x1b[2mthread: ${interaction.threadId}\x1b[0m`);
+    } else {
+      console.error("Usage: threadmcp contact [find <name>|last <name>]");
+    }
+  },
+
   async brief() {
     const token = await auth.getAccessToken();
     printHeader("Daily Brief");
@@ -306,11 +423,16 @@ const commands = {
   threadmcp mail search <query>
   threadmcp mail read <threadId>
   threadmcp mail send <to> <subject> <body>
+  threadmcp mail markread <messageId>
+  threadmcp mail archive <messageId>
+  threadmcp mail trash <messageId>
 
 \x1b[36mCalendar:\x1b[0m
   threadmcp cal today
   threadmcp cal week
   threadmcp cal create "<title>" <when>      e.g. "Team sync" tomorrow 3pm
+  threadmcp cal delete <eventId>
+  threadmcp cal update <eventId> <summary|start|end> <value>
 
 \x1b[36mMeet:\x1b[0m
   threadmcp meet
@@ -318,6 +440,8 @@ const commands = {
 \x1b[36mDrive:\x1b[0m
   threadmcp drive find <query>
   threadmcp drive read <fileId>
+  threadmcp drive mkdir "<name>"
+  threadmcp drive share <fileId> <email> [role]
 
 \x1b[36mDocs:\x1b[0m
   threadmcp doc read <documentId>
@@ -337,6 +461,15 @@ const commands = {
 
 \x1b[36mClassroom:\x1b[0m
   threadmcp classroom
+
+\x1b[36mTasks:\x1b[0m
+  threadmcp tasks list
+  threadmcp tasks create "<title>" [due]
+  threadmcp tasks done <taskId> <tasklistId>
+
+\x1b[36mContacts:\x1b[0m
+  threadmcp contact find <name>
+  threadmcp contact last <name>
 
 \x1b[36mBrief:\x1b[0m
   threadmcp brief

@@ -135,7 +135,16 @@ Every write action (send email, create event) prints what it's about to do and a
 | `get_thread` | Read a full email thread |
 | `list_calendar_events` | Upcoming events |
 | `create_meet_link` | Generate a Meet link |
-| `search_drive` | Search Google Drive |
+| `search_drive` | Search Google Drive by filename |
+| `read_drive_file` | Read a Drive file's text content |
+| `read_doc` | Read a Google Doc |
+| `create_doc` | Create a Google Doc |
+| `read_sheet` | Read cell values from a Sheet |
+| `create_sheet` | Create a Google Sheet |
+| `read_slides` | Read slide titles + text |
+| `create_slides` | Create a Slides deck |
+| `read_form` | Read a Form's questions |
+| `get_form_responses` | Get a Form's response count |
 | `list_classroom_due_work` | Due assignments |
 | `get_daily_brief` | Combined calendar + inbox + classroom summary |
 

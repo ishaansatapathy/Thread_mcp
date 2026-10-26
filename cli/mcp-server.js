@@ -65,6 +65,71 @@ const TOOLS = [
     description: "A combined summary of today's calendar, unread inbox and classroom due work.",
     inputSchema: { type: "object", properties: {} },
   },
+  {
+    name: "read_drive_file",
+    description: "Read the text content of a Drive file (Docs/Sheets/Slides are auto-exported as text).",
+    inputSchema: { type: "object", required: ["fileId"], properties: { fileId: { type: "string" } } },
+  },
+  {
+    name: "read_doc",
+    description: "Read a Google Doc's full text content.",
+    inputSchema: { type: "object", required: ["documentId"], properties: { documentId: { type: "string" } } },
+  },
+  {
+    name: "create_doc",
+    description: "Create a new Google Doc with the given title and text content.",
+    inputSchema: {
+      type: "object",
+      required: ["title"],
+      properties: { title: { type: "string" }, content: { type: "string" } },
+    },
+  },
+  {
+    name: "read_sheet",
+    description: "Read a range of cell values from a Google Sheet (default A1:Z100).",
+    inputSchema: {
+      type: "object",
+      required: ["spreadsheetId"],
+      properties: { spreadsheetId: { type: "string" }, range: { type: "string" } },
+    },
+  },
+  {
+    name: "create_sheet",
+    description: "Create a new Google Sheet with the given title and optional first row of values.",
+    inputSchema: {
+      type: "object",
+      required: ["title"],
+      properties: { title: { type: "string" }, rows: { type: "array", items: { type: "array" } } },
+    },
+  },
+  {
+    name: "read_slides",
+    description: "Read a Google Slides presentation's title and per-slide text content.",
+    inputSchema: {
+      type: "object",
+      required: ["presentationId"],
+      properties: { presentationId: { type: "string" } },
+    },
+  },
+  {
+    name: "create_slides",
+    description: "Create a new Google Slides presentation with an optional text box on the first slide.",
+    inputSchema: {
+      type: "object",
+      required: ["title"],
+      properties: { title: { type: "string" }, bodyText: { type: "string" } },
+    },
+  },
+  {
+    name: "read_form",
+    description: "Read a Google Form's title and question list.",
+    inputSchema: { type: "object", required: ["formId"], properties: { formId: { type: "string" } } },
+  },
+  {
+    name: "get_form_responses",
+    description: "Get the response count for a Google Form.",
+    inputSchema: { type: "object", required: ["formId"], properties: { formId: { type: "string" } } },
+  },
 ];
 
 function textResult(text) {

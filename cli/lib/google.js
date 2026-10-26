@@ -314,6 +314,14 @@ async function slidesCreate(token, { title, bodyText }) {
   };
 }
 
+// ── Forms ──────────────────────────────────────────────────────────────────
+
+async function formsRead(token, formId) {
+  const form = await g(`${FORMS}/${formId}`, token);
+  const questions = (form.items || []).map((item) => item.title).filter(Boolean);
+  return { title: form.info?.title, questions };
+}
+
 module.exports = {
   gmailList,
   gmailSearch,
@@ -331,4 +339,5 @@ module.exports = {
   sheetsCreate,
   slidesRead,
   slidesCreate,
+  formsRead,
 };

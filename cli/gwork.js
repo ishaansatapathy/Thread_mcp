@@ -162,6 +162,30 @@ const commands = {
     }
   },
 
+  async doc(args) {
+    const token = await auth.getAccessToken();
+    const sub = args[0];
+    if (sub === "read") {
+      const documentId = args[1];
+      if (!documentId) return console.error("Usage: threadmcp doc read <documentId>");
+      printHeader("Doc");
+      const doc = await google.docsRead(token, documentId);
+      console.log(`${doc.title}\n\n${doc.text}`);
+    } else if (sub === "create") {
+      const rest = args.slice(1).join(" ");
+      const match = rest.match(/^"([^"]+)"\s*(.*)$/);
+      if (!match) return console.error('Usage: threadmcp doc create "<title>" <content>');
+      const [, title, content] = match;
+      printHeader(`Create Doc: ${title}`);
+      const confirm = await ask("Create this doc? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      const doc = await google.docsCreate(token, { title, content });
+      console.log(`\x1b[32m✓ Created.\x1b[0m ${doc.url}`);
+    } else {
+      console.error("Usage: threadmcp doc [read <documentId>|create \"<title>\" <content>]");
+    }
+  },
+
   async classroom() {
     const token = await auth.getAccessToken();
     printHeader("Classroom — Due Work");

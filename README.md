@@ -45,7 +45,7 @@ https://meet.google.com/abc-defg-hij
 
 ```bash
 # from npm (once published)
-npm install -g threadmcp
+npm install -g @ishaan_satapathy/threadmcp
 
 # or run from source
 git clone <repo-url>
@@ -80,7 +80,7 @@ Add to your Alan AI MCP config:
   "mcpServers": {
     "google-workspace": {
       "command": "npx",
-      "args": ["-y", "threadmcp", "mcp"]
+      "args": ["-y", "@ishaan_satapathy/threadmcp", "mcp"]
     }
   }
 }

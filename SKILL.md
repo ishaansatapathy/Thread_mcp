@@ -20,7 +20,7 @@ Write actions (sending an email, creating an event, creating a Doc/Sheet/Slides)
 
 ```bash
 # from npm (once published)
-npm install -g threadmcp
+npm install -g @ishaan_satapathy/threadmcp
 
 # or run from source
 git clone <repo-url> && cd google-workspace-mcp/cli && npm link
@@ -43,7 +43,7 @@ This opens a browser for Google sign-in and saves a token to `~/.gwork.json`. Th
   "mcpServers": {
     "google-workspace": {
       "command": "npx",
-      "args": ["-y", "threadmcp", "mcp"]
+      "args": ["-y", "@ishaan_satapathy/threadmcp", "mcp"]
     }
   }
 }

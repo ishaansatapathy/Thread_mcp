@@ -4,6 +4,10 @@ const GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me";
 const CALENDAR = "https://www.googleapis.com/calendar/v3";
 const DRIVE = "https://www.googleapis.com/drive/v3";
 const CLASSROOM = "https://classroom.googleapis.com/v1";
+const DOCS = "https://docs.googleapis.com/v1/documents";
+const SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
+const SLIDES = "https://slides.googleapis.com/v1/presentations";
+const FORMS = "https://forms.googleapis.com/v1/forms";
 
 async function g(url, token, opts = {}) {
   const res = await fetch(url, {

@@ -213,6 +213,30 @@ const commands = {
     }
   },
 
+  async slides(args) {
+    const token = await auth.getAccessToken();
+    const sub = args[0];
+    if (sub === "read") {
+      const presentationId = args[1];
+      if (!presentationId) return console.error("Usage: threadmcp slides read <presentationId>");
+      printHeader("Slides");
+      const deck = await google.slidesRead(token, presentationId);
+      console.log(`${deck.title}\n\n${deck.slides.join("\n")}`);
+    } else if (sub === "create") {
+      const rest = args.slice(1).join(" ");
+      const match = rest.match(/^"([^"]+)"\s*(.*)$/);
+      if (!match) return console.error('Usage: threadmcp slides create "<title>" <bodyText>');
+      const [, title, bodyText] = match;
+      printHeader(`Create Slides: ${title}`);
+      const confirm = await ask("Create this presentation? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      const deck = await google.slidesCreate(token, { title, bodyText });
+      console.log(`\x1b[32m✓ Created.\x1b[0m ${deck.url}`);
+    } else {
+      console.error('Usage: threadmcp slides [read <presentationId>|create "<title>" <bodyText>]');
+    }
+  },
+
   async classroom() {
     const token = await auth.getAccessToken();
     printHeader("Classroom — Due Work");

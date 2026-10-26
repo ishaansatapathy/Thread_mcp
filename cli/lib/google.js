@@ -22,6 +22,20 @@ async function g(url, token, opts = {}) {
   return res.json();
 }
 
+// Gmail snippets arrive HTML-escaped and often padded with invisible spacer characters.
+function cleanSnippet(s) {
+  return (s || "")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/[͏​-‏⁠﻿­]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function header(headers, name) {
   const h = (headers || []).find((h) => h.name.toLowerCase() === name.toLowerCase());
   return h ? h.value : "";
@@ -44,7 +58,7 @@ async function gmailList(token, { query = "", maxResults = 10, labels } = {}) {
     threadId: m.threadId,
     from: header(m.payload.headers, "From"),
     subject: header(m.payload.headers, "Subject"),
-    snippet: m.snippet,
+    snippet: cleanSnippet(m.snippet),
     unread: (m.labelIds || []).includes("UNREAD"),
   }));
 }
@@ -73,7 +87,7 @@ async function gmailGetThread(token, threadId) {
     from: header(m.payload.headers, "From"),
     subject: header(m.payload.headers, "Subject"),
     date: header(m.payload.headers, "Date"),
-    snippet: m.snippet,
+    snippet: cleanSnippet(m.snippet),
     body: extractBody(m.payload),
   }));
 }

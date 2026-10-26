@@ -276,6 +276,44 @@ async function slidesRead(token, presentationId) {
   return { title: presentation.title, slides: extractSlidesText(presentation) };
 }
 
+async function slidesCreate(token, { title, bodyText }) {
+  const presentation = await g(SLIDES, token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+
+  if (bodyText && presentation.slides?.[0]) {
+    const slideId = presentation.slides[0].objectId;
+    const boxId = "box_" + Math.random().toString(36).slice(2);
+    await g(`${SLIDES}/${presentation.presentationId}:batchUpdate`, token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requests: [
+          {
+            createShape: {
+              objectId: boxId,
+              shapeType: "TEXT_BOX",
+              elementProperties: {
+                pageObjectId: slideId,
+                size: { height: { magnitude: 3_000_000, unit: "EMU" }, width: { magnitude: 6_000_000, unit: "EMU" } },
+                transform: { scaleX: 1, scaleY: 1, translateX: 1_000_000, translateY: 1_000_000, unit: "EMU" },
+              },
+            },
+          },
+          { insertText: { objectId: boxId, text: bodyText } },
+        ],
+      }),
+    });
+  }
+
+  return {
+    presentationId: presentation.presentationId,
+    url: `https://docs.google.com/presentation/d/${presentation.presentationId}/edit`,
+  };
+}
+
 module.exports = {
   gmailList,
   gmailSearch,
@@ -292,4 +330,5 @@ module.exports = {
   sheetsRead,
   sheetsCreate,
   slidesRead,
+  slidesCreate,
 };

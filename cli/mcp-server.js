@@ -5,7 +5,7 @@
  * Reuses the same Google OAuth token saved by `threadmcp login`.
  * Point Alan AI's MCP config at:
  *   { "command": "npx", "args": ["-y", "@ishaan_satapathy/threadmcp", "mcp"] }
- * 50 tools: Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Classroom, Tasks, Contacts,
+ * 52 tools: Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Classroom, Tasks, Contacts,
  *   GitHub, Jira, Slack, SigNoz — smart inbox, conflict detection, free slots, analytics.
  */
 
@@ -304,7 +304,7 @@ const TOOLS = [
     },
   },
   {
-    name: "list_github_pull_requests",
+    name: "list_github_prs",
     description: "List pull requests for a GitHub repository.",
     inputSchema: {
       type: "object",
@@ -402,8 +402,8 @@ const TOOLS = [
   },
   // ── SigNoz ──
   {
-    name: "get_signoz_service_health",
-    description: "Get health metrics for a service from SigNoz — request rate, error rate, and p99 latency over a time window.",
+    name: "get_service_health",
+    description: "Get health stats for a service from SigNoz — total spans, error count, error rate %, avg and p50 latency.",
     inputSchema: {
       type: "object",
       required: ["serviceName"],
@@ -411,14 +411,37 @@ const TOOLS = [
     },
   },
   {
-    name: "list_signoz_alert_rules",
+    name: "query_traces",
+    description: "Query raw spans/traces from SigNoz for a service, optionally filtering to error spans only.",
+    inputSchema: {
+      type: "object",
+      required: ["serviceName"],
+      properties: {
+        serviceName: { type: "string" },
+        hasError: { type: "boolean", description: "Return only error spans (default: false)" },
+        windowMinutes: { type: "number", description: "Minutes to query (default: 60)" },
+        limit: { type: "number", description: "Max spans to return (default: 20)" },
+      },
+    },
+  },
+  {
+    name: "list_alert_rules",
     description: "List all alert rules configured in your SigNoz instance.",
     inputSchema: { type: "object", properties: {} },
   },
   {
-    name: "list_signoz_dashboards",
-    description: "List all dashboards in your SigNoz instance.",
+    name: "list_notification_channels",
+    description: "List notification channels (slack, email, pagerduty, etc.) configured in SigNoz.",
     inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_alert_history",
+    description: "Get the firing/trigger history timeline for a specific SigNoz alert rule.",
+    inputSchema: {
+      type: "object",
+      required: ["ruleId"],
+      properties: { ruleId: { type: "string" }, windowMinutes: { type: "number", description: "Minutes of history (default: 1440)" } },
+    },
   },
 ];
 
@@ -641,35 +664,35 @@ async function callTool(name, args = {}) {
     }
     // ── GitHub ──
     case "list_github_repos": {
-      const ghToken = await auth.ensureGithubCreds();
+      const ghToken = await auth.ensureGithubToken();
       const repos = await github.listRepos(ghToken, args.maxResults || 20);
       if (!repos.length) return textResult("No repositories found.");
       return textResult(repos.map((r) => `${r.fullName}${r.private ? " [private]" : ""} — ${r.description || "(no description)"}\n  ${r.url}`).join("\n"));
     }
     case "list_github_issues": {
-      const ghToken = await auth.ensureGithubCreds();
+      const ghToken = await auth.ensureGithubToken();
       const issues = await github.listIssues(ghToken, args.owner, args.repo, args.state || "open");
       if (!issues.length) return textResult(`No ${args.state || "open"} issues in ${args.owner}/${args.repo}.`);
       return textResult(issues.map((i) => `#${i.number} [${i.state}] ${i.title} — by ${i.author}\n  ${i.url}`).join("\n"));
     }
     case "create_github_issue": {
-      const ghToken = await auth.ensureGithubCreds();
+      const ghToken = await auth.ensureGithubToken();
       const issue = await github.createIssue(ghToken, args.owner, args.repo, { title: args.title, body: args.body });
       return textResult(`Issue created: #${issue.number} — ${issue.title}\n${issue.url}`);
     }
-    case "list_github_pull_requests": {
-      const ghToken = await auth.ensureGithubCreds();
+    case "list_github_prs": {
+      const ghToken = await auth.ensureGithubToken();
       const prs = await github.listPullRequests(ghToken, args.owner, args.repo, args.state || "open");
       if (!prs.length) return textResult(`No ${args.state || "open"} PRs in ${args.owner}/${args.repo}.`);
       return textResult(prs.map((p) => `#${p.number} ${p.title} — by ${p.author}\n  ${p.headBranch} → ${p.baseBranch}\n  ${p.url}`).join("\n"));
     }
     case "comment_on_pr": {
-      const ghToken = await auth.ensureGithubCreds();
+      const ghToken = await auth.ensureGithubToken();
       const comment = await github.commentOnPR(ghToken, args.owner, args.repo, args.prNumber, args.body);
       return textResult(`Comment added to ${args.owner}/${args.repo}#${args.prNumber}\n${comment.url}`);
     }
     case "search_github_code": {
-      const ghToken = await auth.ensureGithubCreds();
+      const ghToken = await auth.ensureGithubToken();
       const results = await github.searchCode(ghToken, args.query, args.maxResults || 10);
       if (!results.length) return textResult(`No code matching "${args.query}".`);
       return textResult(results.map((r) => `${r.repo}: ${r.path}\n  ${r.url}`).join("\n"));
@@ -700,45 +723,86 @@ async function callTool(name, args = {}) {
     }
     // ── Slack ──
     case "send_slack_message": {
-      const sToken = await auth.ensureSlackCreds();
+      const sToken = await auth.ensureSlackToken();
       const msg = await slack.sendMessage(sToken, args.channel, args.text);
       return textResult(`Message sent to ${msg.channel} (ts: ${msg.ts})`);
     }
     case "list_slack_channels": {
-      const sToken = await auth.ensureSlackCreds();
+      const sToken = await auth.ensureSlackToken();
       const channels = await slack.listChannels(sToken, args.maxResults || 50);
       if (!channels.length) return textResult("No channels found.");
       return textResult(channels.map((c) => `#${c.name} (${c.isPrivate ? "private" : "public"}, ${c.numMembers} members) — id: ${c.id}`).join("\n"));
     }
     case "get_slack_channel_history": {
-      const sToken = await auth.ensureSlackCreds();
+      const sToken = await auth.ensureSlackToken();
       const msgs = await slack.getChannelHistory(sToken, args.channel, args.maxResults || 20);
       if (!msgs.length) return textResult("No messages in this channel.");
       return textResult(msgs.map((m) => `${m.user}: ${m.text.slice(0, 200)}`).join("\n"));
     }
     case "search_slack_messages": {
-      const sToken = await auth.ensureSlackCreds();
+      const sToken = await auth.ensureSlackToken();
       const msgs = await slack.searchMessages(sToken, args.query, args.maxResults || 20);
       if (!msgs.length) return textResult(`No messages matching "${args.query}".`);
       return textResult(msgs.map((m) => `[#${m.channel}] ${m.user}: ${m.text.slice(0, 300)}\n  ${m.permalink}`).join("\n"));
     }
     // ── SigNoz ──
-    case "get_signoz_service_health": {
+    case "get_service_health": {
       const sCreds = await auth.ensureSignozCreds();
       const health = await signoz.getServiceHealth(sCreds, args.serviceName, args.windowMinutes || 60);
-      return textResult(`${health.service} (last ${health.windowMinutes}min):\n  Requests: ${health.requestRate}\n  Errors (≥500): ${health.errorRate}\n  p99 latency: ${health.p99LatencyMs != null ? `${health.p99LatencyMs}ms` : "N/A"}`);
+      return textResult(
+        `${health.serviceName} (last ${health.windowMinutes}min):\n` +
+          `  Total spans: ${health.totalSpans}\n` +
+          `  Errors: ${health.errorCount} (${health.errorRatePct}%)\n` +
+          `  Avg duration: ${health.avgDurationMs != null ? `${health.avgDurationMs}ms` : "N/A"}\n` +
+          `  p50 duration: ${health.p50DurationMs != null ? `${health.p50DurationMs}ms` : "N/A"}`,
+      );
     }
-    case "list_signoz_alert_rules": {
+    case "query_traces": {
+      const sCreds = await auth.ensureSignozCreds();
+      const traces = await signoz.queryTraces(sCreds, {
+        serviceName: args.serviceName,
+        hasError: args.hasError || false,
+        windowMinutes: args.windowMinutes || 60,
+        limit: args.limit || 20,
+      });
+      if (!traces.length) return textResult(`No ${args.hasError ? "error " : ""}traces for ${args.serviceName} in the window.`);
+      return textResult(
+        traces
+          .map(
+            (t) =>
+              `${t.name}${t.hasError ? " [ERROR]" : ""} — ${t.durationMs != null ? `${t.durationMs}ms` : "?"} (trace: ${t.traceId}, span: ${t.spanId})`,
+          )
+          .join("\n"),
+      );
+    }
+    case "list_alert_rules": {
       const sCreds = await auth.ensureSignozCreds();
       const rules = await signoz.listAlertRules(sCreds);
-      if (!rules.length) return textResult("No alert rules configured.");
-      return textResult(rules.map((r) => `${r.name} [${r.state}] (id: ${r.id})`).join("\n"));
+      const arr = Array.isArray(rules) ? rules : [];
+      if (!arr.length) return textResult("No alert rules configured.");
+      return textResult(
+        arr
+          .map((r) => {
+            const id = r.id ?? r.uuid ?? "";
+            const name = r.alertName ?? r.alert ?? r.name ?? "Untitled";
+            const state = r.state ?? (r.disabled ? "disabled" : r.active === false ? "inactive" : "active");
+            const severity = r.labels?.severity ?? r.severity ?? "";
+            return `${name}${severity ? ` [${severity}]` : ""} (state: ${state}) ${id ? `(id: ${id})` : ""}`;
+          })
+          .join("\n"),
+      );
     }
-    case "list_signoz_dashboards": {
+    case "list_notification_channels": {
       const sCreds = await auth.ensureSignozCreds();
-      const boards = await signoz.listDashboards(sCreds);
-      if (!boards.length) return textResult("No dashboards.");
-      return textResult(boards.map((d) => `${d.title}${d.description ? ` — ${d.description}` : ""} (id: ${d.id})`).join("\n"));
+      const channels = await signoz.listNotificationChannels(sCreds);
+      if (!channels.length) return textResult("No notification channels configured.");
+      return textResult(channels.map((c) => `${c.name} [${c.type}] (id: ${c.id})`).join("\n"));
+    }
+    case "get_alert_history": {
+      const sCreds = await auth.ensureSignozCreds();
+      const history = await signoz.getAlertHistory(sCreds, args.ruleId, args.windowMinutes || 1440);
+      const text = typeof history === "string" ? history : JSON.stringify(history, null, 2);
+      return textResult(text || "(no history)");
     }
     default:
       throw new Error(`Unknown tool: ${name}`);

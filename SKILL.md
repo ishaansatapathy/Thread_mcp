@@ -82,11 +82,11 @@ This opens a browser for Google sign-in and saves a token to `~/.gwork.json`. Th
 | `list_tasks` / `create_task` / `complete_task` | Manage Google Tasks |
 | `find_contact` | Search your Google Contacts |
 | `last_interaction` | Most recent email exchange with a person |
-| `list_github_repos` / `list_github_issues` / `list_github_pull_requests` | Browse GitHub repos, issues, PRs |
+| `list_github_repos` / `list_github_issues` / `list_github_prs` | Browse GitHub repos, issues, PRs |
 | `create_github_issue` / `comment_on_pr` / `search_github_code` | Write to GitHub |
 | `list_jira_issues` / `get_jira_issue` / `create_jira_issue` / `transition_jira_issue` | Manage Jira |
 | `send_slack_message` / `list_slack_channels` / `get_slack_channel_history` / `search_slack_messages` | Interact with Slack |
-| `get_signoz_service_health` / `list_signoz_alert_rules` / `list_signoz_dashboards` | Query SigNoz observability |
+| `get_service_health` / `query_traces` / `list_alert_rules` / `list_notification_channels` / `get_alert_history` | Query SigNoz observability |
 
 ## Example prompts
 

@@ -214,64 +214,64 @@ function logout() {
 }
 
 // ── Integration credential helpers ──────────────────────────────────────────
-// Each integration stores its credentials in ~/.gwork.json alongside the Google token.
-// Prompts once, caches forever.
+// Each integration stores its credentials in ~/.gwork.json, namespaced by service
+// key, alongside the Google OAuth fields. Prompts once, caches forever.
 
-async function ensureGithubCreds() {
+async function ensureGithubToken() {
   const cfg = loadConfig();
-  let token = process.env.GITHUB_TOKEN || cfg.githubToken;
+  let token = process.env.GITHUB_TOKEN || cfg.github?.token;
   if (!token) {
     console.log("\nGitHub Personal Access Token required.");
     console.log("Create one at https://github.com/settings/tokens (scopes: repo, read:user)\n");
-    token = await ask("GitHub PAT: ");
-    saveConfig({ ...cfg, githubToken: token });
+    token = await ask("GitHub Personal Access Token (create at github.com/settings/tokens): ");
+    saveConfig({ ...cfg, github: { ...(cfg.github || {}), token } });
   }
   return token;
 }
 
 async function ensureJiraCreds() {
   const cfg = loadConfig();
-  let site = process.env.JIRA_SITE || cfg.jiraSite;
-  let email = process.env.JIRA_EMAIL || cfg.jiraEmail;
-  let apiToken = process.env.JIRA_API_TOKEN || cfg.jiraApiToken;
+  let site = process.env.JIRA_SITE || cfg.jira?.site;
+  let email = process.env.JIRA_EMAIL || cfg.jira?.email;
+  let apiToken = process.env.JIRA_API_TOKEN || cfg.jira?.apiToken;
   if (!site || !email || !apiToken) {
     console.log("\nJira credentials required.");
     console.log("Site is your subdomain (e.g. 'mycompany' for mycompany.atlassian.net)");
     console.log("API token: https://id.atlassian.com/manage-profile/security/api-tokens\n");
-    site = await ask("Jira Site: ");
-    email = await ask("Jira Email: ");
-    apiToken = await ask("Jira API Token: ");
-    saveConfig({ ...cfg, jiraSite: site, jiraEmail: email, jiraApiToken: apiToken });
+    if (!site) site = await ask("Jira Site subdomain (e.g. mycompany): ");
+    if (!email) email = await ask("Jira Email: ");
+    if (!apiToken) apiToken = await ask("Jira API Token: ");
+    saveConfig({ ...cfg, jira: { site, email, apiToken } });
   }
   return { site, email, apiToken };
 }
 
-async function ensureSlackCreds() {
+async function ensureSlackToken() {
   const cfg = loadConfig();
-  let token = process.env.SLACK_BOT_TOKEN || cfg.slackToken;
+  let token = process.env.SLACK_BOT_TOKEN || cfg.slack?.token;
   if (!token) {
-    console.log("\nSlack bot or user token required.");
+    console.log("\nSlack token required.");
     console.log("Bot token: https://api.slack.com/apps → OAuth & Permissions (starts with xoxb-)");
     console.log("User token: https://api.slack.com/apps → User OAuth Token (starts with xoxp-, needed for search)\n");
-    token = await ask("Slack Token: ");
-    saveConfig({ ...cfg, slackToken: token });
+    token = await ask("Slack Bot Token (xoxb-...): ");
+    saveConfig({ ...cfg, slack: { ...(cfg.slack || {}), token } });
   }
   return token;
 }
 
 async function ensureSignozCreds() {
   const cfg = loadConfig();
-  let cloudUrl = process.env.SIGNOZ_CLOUD_URL || cfg.signozCloudUrl;
-  let apiKey = process.env.SIGNOZ_API_KEY || cfg.signozApiKey;
+  let cloudUrl = process.env.SIGNOZ_CLOUD_URL || cfg.signoz?.cloudUrl;
+  let apiKey = process.env.SIGNOZ_API_KEY || cfg.signoz?.apiKey;
   if (!cloudUrl || !apiKey) {
     console.log("\nSigNoz credentials required.");
     console.log("Cloud URL: your SigNoz instance (e.g. https://myorg.signoz.cloud or http://localhost:8080)");
     console.log("API Key: SigNoz → Settings → API Keys → create an Editor key\n");
-    cloudUrl = await ask("SigNoz Cloud URL: ");
-    apiKey = await ask("SigNoz API Key: ");
-    saveConfig({ ...cfg, signozCloudUrl: cloudUrl, signozApiKey: apiKey });
+    if (!cloudUrl) cloudUrl = await ask("SigNoz Cloud URL: ");
+    if (!apiKey) apiKey = await ask("SigNoz API Key: ");
+    saveConfig({ ...cfg, signoz: { cloudUrl, apiKey } });
   }
   return { cloudUrl, apiKey };
 }
 
-module.exports = { login, logout, getAccessToken, loadConfig, CONFIG_PATH, ensureGithubCreds, ensureJiraCreds, ensureSlackCreds, ensureSignozCreds };
+module.exports = { login, logout, getAccessToken, loadConfig, CONFIG_PATH, ensureGithubToken, ensureJiraCreds, ensureSlackToken, ensureSignozCreds };

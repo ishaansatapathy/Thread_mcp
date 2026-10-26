@@ -159,24 +159,25 @@ threadmcp contact last <name>               # last email with a person
 
 threadmcp github repos                      # your repositories
 threadmcp github issues <owner> <repo>      # open issues
-threadmcp github create-issue <owner> <repo> "<title>" [body]
+threadmcp github issue create <owner> <repo> "<title>" <body>
 threadmcp github prs <owner> <repo>         # pull requests
-threadmcp github comment <owner> <repo> <prNumber> "<body>"
-threadmcp github search "<query>"           # code search
+threadmcp github comment <owner> <repo> <prNumber> <body>
+threadmcp github search <query>             # code search
 
-threadmcp jira list [jql]                   # your unresolved issues
-threadmcp jira get <ISSUE-KEY>              # one issue
-threadmcp jira create "<projectKey>" "<summary>" [description]
+threadmcp jira issues [jql]                 # your unresolved issues
+threadmcp jira issue <ISSUE-KEY>            # one issue
+threadmcp jira create "<projectKey>" "<summary>" <description>
 threadmcp jira transition <ISSUE-KEY> <transitionName>
 
-threadmcp slack send <channel> "<text>"     # post a message
+threadmcp slack send <channel> <text>       # post a message
 threadmcp slack channels                    # list channels
 threadmcp slack history <channel>           # recent messages
-threadmcp slack search "<query>"            # search messages
+threadmcp slack search <query>              # search messages
 
-threadmcp signoz health <serviceName> [windowMinutes]  # request/error/p99
+threadmcp signoz health <serviceName> [windowMinutes]  # spans/errors/latency
+threadmcp signoz traces <serviceName> [--errors]       # raw spans
 threadmcp signoz alerts                     # alert rules
-threadmcp signoz dashboards                 # dashboards
+threadmcp signoz channels                   # notification channels
 
 threadmcp brief                             # combined daily summary
 
@@ -227,7 +228,7 @@ Every write action (send email, create event) prints what it's about to do and a
 | `list_github_repos` | List your GitHub repos |
 | `list_github_issues` | Open issues in a repo |
 | `create_github_issue` | Create a new GitHub issue |
-| `list_github_pull_requests` | Pull requests in a repo |
+| `list_github_prs` | Pull requests in a repo |
 | `comment_on_pr` | Comment on a PR |
 | `search_github_code` | Search code across GitHub |
 | `list_jira_issues` | Jira issues (JQL support) |
@@ -238,9 +239,11 @@ Every write action (send email, create event) prints what it's about to do and a
 | `list_slack_channels` | List Slack channels |
 | `get_slack_channel_history` | Recent messages from a channel |
 | `search_slack_messages` | Search Slack messages |
-| `get_signoz_service_health` | Service request/error/p99 metrics |
-| `list_signoz_alert_rules` | SigNoz alert rules |
-| `list_signoz_dashboards` | SigNoz dashboards |
+| `get_service_health` | Service spans/errors/latency from SigNoz |
+| `query_traces` | Raw spans, optionally error-only |
+| `list_alert_rules` | SigNoz alert rules |
+| `list_notification_channels` | SigNoz notification channels |
+| `get_alert_history` | SigNoz alert firing history |
 
 ---
 

@@ -1,5 +1,10 @@
 "use strict";
 
+// SigNoz observability client. Auth: SIGNOZ-API-KEY header.
+// Query normalization mirrors evolvex's client.ts `extractQueryRangeRows` exactly —
+// the v5 query_range response is non-obvious: legacy `data.result[0].table.rows` OR
+// modern `data.data.results[0].rows`, each row possibly nested under `.data`.
+
 async function g(url, apiKey, opts = {}) {
   const res = await fetch(url, {
     ...opts,
@@ -17,97 +22,116 @@ function normalizeUrl(url) {
   return url.trim().replace(/\/+$/, "");
 }
 
-function lookUp(row, key) {
-  for (const kv of row.data?.result || []) {
-    if (kv.metric?.[key]) return Number(kv.metric[key]) || 0;
-  }
-  return 0;
+function extractQueryRangeRows(json) {
+  const legacyRows = json.data?.result?.[0]?.table?.rows;
+  if (legacyRows?.length) return legacyRows;
+
+  const modernRows = json.data?.data?.results?.[0]?.rows;
+  if (!modernRows?.length) return [];
+
+  return modernRows.map((row) => {
+    if (row && typeof row === "object" && "data" in row && row.data && typeof row.data === "object") {
+      const nested = row.data;
+      const timestamp = row.timestamp;
+      return timestamp && !nested.timestamp ? { ...nested, timestamp } : nested;
+    }
+    return row;
+  });
+}
+
+function rowValue(row, key) {
+  if (key in row) return row[key];
+  const alt = key.replace(/\./g, "_");
+  if (alt in row) return row[alt];
+  return undefined;
+}
+
+function parseTraceRow(row) {
+  const durationRaw = rowValue(row, "durationNano") ?? rowValue(row, "duration_nano");
+  const durationMs = typeof durationRaw === "number" ? Math.round(durationRaw / 1_000_000) : undefined;
+  return {
+    traceId: String(rowValue(row, "traceID") ?? rowValue(row, "trace_id") ?? ""),
+    spanId: String(rowValue(row, "spanID") ?? rowValue(row, "span_id") ?? ""),
+    serviceName: String(rowValue(row, "service.name") ?? rowValue(row, "service_name") ?? ""),
+    name: String(rowValue(row, "name") ?? rowValue(row, "span_name") ?? "span"),
+    durationMs,
+    hasError: Boolean(rowValue(row, "hasError") ?? rowValue(row, "has_error")),
+    timestamp: String(rowValue(row, "timestamp") ?? ""),
+  };
+}
+
+// ── Traces ──────────────────────────────────────────────────────────────────
+
+async function queryTraces(creds, { serviceName, hasError, windowMinutes = 60, limit = 20 }) {
+  const now = Date.now();
+  const start = Math.floor((now - windowMinutes * 60_000) / 1000);
+  const end = Math.floor(now / 1000);
+
+  const filterParts = ["parent_span_id = ''"];
+  if (serviceName) filterParts.push(`service.name = '${serviceName.replace(/'/g, "''")}'`);
+  if (hasError) filterParts.push("has_error = true");
+
+  const body = {
+    start,
+    end,
+    requestType: "raw",
+    compositeQuery: {
+      queries: [
+        {
+          type: "builder_query",
+          spec: {
+            name: "A",
+            signal: "traces",
+            filter: { expression: filterParts.join(" AND ") },
+            selectFields: [
+              { name: "service.name", fieldContext: "resource" },
+              { name: "name" },
+              { name: "durationNano" },
+              { name: "hasError" },
+              { name: "traceID" },
+              { name: "spanID" },
+              { name: "timestamp" },
+            ],
+            limit: limit ?? 20,
+            offset: 0,
+            order: [{ key: { name: "timestamp" }, direction: "desc" }],
+          },
+        },
+      ],
+    },
+  };
+
+  const url = `${normalizeUrl(creds.cloudUrl)}/api/v5/query_range`;
+  const json = await g(url, creds.apiKey, { method: "POST", body: JSON.stringify(body) });
+  const rows = extractQueryRangeRows(json);
+  return rows.map((row) => parseTraceRow(row));
 }
 
 // ── Service Health ──────────────────────────────────────────────────────────
 
 async function getServiceHealth(creds, serviceName, windowMinutes = 60) {
-  const now = Math.floor(Date.now() / 1000);
-  const start = now - windowMinutes * 60;
-  const segments = 12;
+  const traces = await queryTraces(creds, { serviceName, windowMinutes, limit: 100 });
 
-  // Request rate
-  const reqBody = {
-    start,
-    end: now,
-    step: Math.ceil((windowMinutes * 60) / segments),
-    compositeMetricQuery: {
-      builderQueries: {
-        A: {
-          queryName: "A",
-          step: Math.ceil((windowMinutes * 60) / segments),
-          dataSource: "metrics",
-          aggregateOperator: "RATE",
-          aggregateAttribute: { key: "signoz_calls_total", dataType: "float64", type: "" },
-          tagFilters: {
-            items: [{ id: "svc", key: { key: "service_name", dataType: "string", type: "tag", isColumn: false }, op: "=", value: serviceName }],
-            op: "AND",
-          },
-          expression: "A",
-          disabled: false,
-          having: [],
-          limit: null,
-          orderBy: [],
-          reduceTo: "sum",
-          timeAggregation: "RATE",
-          spaceAggregation: "sum",
-          groupBy: [],
-          legend: "Request rate",
-        },
-      },
-      queryType: "builder",
-      panelType: "graph",
-    },
-  };
+  const totalSpans = traces.length;
+  const errorCount = traces.filter((t) => t.hasError).length;
+  const errorRatePct = totalSpans > 0 ? Math.round((errorCount / totalSpans) * 1000) / 10 : 0;
 
-  const reqRes = await g(`${normalizeUrl(creds.cloudUrl)}/api/v5/query_range`, creds.apiKey, {
-    method: "POST",
-    body: JSON.stringify(reqBody),
-  });
+  const durations = traces
+    .map((t) => t.durationMs)
+    .filter((d) => typeof d === "number")
+    .sort((a, b) => a - b);
 
-  // Error rate
-  const errBody = JSON.parse(JSON.stringify(reqBody));
-  errBody.compositeMetricQuery.builderQueries.A.aggregateAttribute.key = "signoz_calls_total";
-  errBody.compositeMetricQuery.builderQueries.A.tagFilters.items.push({
-    id: "sc",
-    key: { key: "status_code", dataType: "int64", type: "tag", isColumn: false },
-    op: ">=",
-    value: "500",
-  });
-  errBody.compositeMetricQuery.builderQueries.A.legend = "Error rate";
-
-  const errRes = await g(`${normalizeUrl(creds.cloudUrl)}/api/v5/query_range`, creds.apiKey, {
-    method: "POST",
-    body: JSON.stringify(errBody),
-  });
-
-  // P99 latency — single query
-  const p99Body = JSON.parse(JSON.stringify(reqBody));
-  p99Body.compositeMetricQuery.builderQueries.A.aggregateAttribute.key = "signoz_latency";
-  p99Body.compositeMetricQuery.builderQueries.A.aggregateAttribute.dataType = "float64";
-  p99Body.compositeMetricQuery.builderQueries.A.spaceAggregation = "p99";
-  p99Body.compositeMetricQuery.builderQueries.A.legend = "p99 latency";
-
-  const p99Res = await g(`${normalizeUrl(creds.cloudUrl)}/api/v5/query_range`, creds.apiKey, {
-    method: "POST",
-    body: JSON.stringify(p99Body),
-  });
-
-  const requestRate = reqRes.data?.result?.[0]?.table?.rows?.length || 0;
-  const errorRate = errRes.data?.result?.[0]?.table?.rows?.length || 0;
-  const p99L = p99Res.data?.result?.[0]?.table?.rows;
+  const avgMs = durations.length ? Math.round(durations.reduce((s, d) => s + d, 0) / durations.length) : null;
+  const p50Ms = durations.length ? durations[Math.floor(durations.length * 0.5)] : null;
 
   return {
-    service: serviceName,
+    serviceName,
     windowMinutes,
-    requestRate: requestRate > 0 ? `${requestRate} data points` : "No data",
-    errorRate: errorRate > 0 ? `${errorRate} data points (≥500 status)` : "No errors",
-    p99LatencyMs: p99L ? lookUp(p99Res, "signoz_latency") : null,
+    totalSpans,
+    errorCount,
+    errorRatePct,
+    avgDurationMs: avgMs,
+    p50DurationMs: p50Ms,
   };
 }
 
@@ -115,23 +139,22 @@ async function getServiceHealth(creds, serviceName, windowMinutes = 60) {
 
 async function listAlertRules(creds) {
   const result = await g(`${normalizeUrl(creds.cloudUrl)}/api/v2/rules`, creds.apiKey);
-  return (result || []).map((r) => ({
-    id: r.id,
-    name: r.alertName || r.alert,
-    state: r.state || r.disabled ? "disabled" : "active",
-    labels: r.labels || {},
-  }));
+  return Array.isArray(result) ? result : result?.rules || result?.data || [];
 }
 
-// ── Dashboards ──────────────────────────────────────────────────────────────
+// ── Notification Channels ───────────────────────────────────────────────────
 
-async function listDashboards(creds) {
-  const result = await g(`${normalizeUrl(creds.cloudUrl)}/api/v1/dashboards`, creds.apiKey);
-  return (result || []).map((d) => ({
-    id: d.uuid || d.id,
-    title: d.data?.title || d.title || "Untitled",
-    description: d.data?.description || "",
-  }));
+async function listNotificationChannels(creds) {
+  const result = await g(`${normalizeUrl(creds.cloudUrl)}/api/v1/channels`, creds.apiKey);
+  const list = Array.isArray(result) ? result : result?.data || [];
+  return list.map((c) => ({ id: c.id, name: c.name, type: c.channelType || c.type }));
 }
 
-module.exports = { getServiceHealth, listAlertRules, listDashboards };
+// ── Alert History ───────────────────────────────────────────────────────────
+
+async function getAlertHistory(creds, ruleId, windowMinutes = 1440) {
+  const url = `${normalizeUrl(creds.cloudUrl)}/api/v2/rules/${ruleId}/history/timeline`;
+  return g(url, creds.apiKey);
+}
+
+module.exports = { queryTraces, getServiceHealth, listAlertRules, listNotificationChannels, getAlertHistory };

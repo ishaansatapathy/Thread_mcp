@@ -409,6 +409,10 @@ const commands = {
   },
 
   async github(args) {
+    if (args[0] === "login") {
+      await auth.ensureGithubToken();
+      return console.log("\x1b[32m✓ GitHub configured.\x1b[0m");
+    }
     const token = await auth.ensureGithubToken();
     const sub = args[0];
 
@@ -467,6 +471,10 @@ const commands = {
   },
 
   async jira(args) {
+    if (args[0] === "login") {
+      await auth.ensureJiraCreds();
+      return console.log("\x1b[32m✓ Jira configured.\x1b[0m");
+    }
     const creds = await auth.ensureJiraCreds();
     const sub = args[0];
 
@@ -508,6 +516,10 @@ const commands = {
   },
 
   async slack(args) {
+    if (args[0] === "login") {
+      await auth.ensureSlackToken();
+      return console.log("\x1b[32m✓ Slack configured.\x1b[0m");
+    }
     const token = await auth.ensureSlackToken();
     const sub = args[0];
 
@@ -546,6 +558,10 @@ const commands = {
   },
 
   async signoz(args) {
+    if (args[0] === "login") {
+      await auth.ensureSignozCreds();
+      return console.log("\x1b[32m✓ SigNoz configured.\x1b[0m");
+    }
     const creds = await auth.ensureSignozCreds();
     const sub = args[0];
 

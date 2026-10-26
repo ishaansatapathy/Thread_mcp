@@ -664,90 +664,90 @@ async function callTool(name, args = {}) {
     }
     // ── GitHub ──
     case "list_github_repos": {
-      const ghToken = await auth.ensureGithubToken();
+      const ghToken = await auth.getGithubToken();
       const repos = await github.listRepos(ghToken, args.maxResults || 20);
       if (!repos.length) return textResult("No repositories found.");
       return textResult(repos.map((r) => `${r.fullName}${r.private ? " [private]" : ""} — ${r.description || "(no description)"}\n  ${r.url}`).join("\n"));
     }
     case "list_github_issues": {
-      const ghToken = await auth.ensureGithubToken();
+      const ghToken = await auth.getGithubToken();
       const issues = await github.listIssues(ghToken, args.owner, args.repo, args.state || "open");
       if (!issues.length) return textResult(`No ${args.state || "open"} issues in ${args.owner}/${args.repo}.`);
       return textResult(issues.map((i) => `#${i.number} [${i.state}] ${i.title} — by ${i.author}\n  ${i.url}`).join("\n"));
     }
     case "create_github_issue": {
-      const ghToken = await auth.ensureGithubToken();
+      const ghToken = await auth.getGithubToken();
       const issue = await github.createIssue(ghToken, args.owner, args.repo, { title: args.title, body: args.body });
       return textResult(`Issue created: #${issue.number} — ${issue.title}\n${issue.url}`);
     }
     case "list_github_prs": {
-      const ghToken = await auth.ensureGithubToken();
+      const ghToken = await auth.getGithubToken();
       const prs = await github.listPullRequests(ghToken, args.owner, args.repo, args.state || "open");
       if (!prs.length) return textResult(`No ${args.state || "open"} PRs in ${args.owner}/${args.repo}.`);
       return textResult(prs.map((p) => `#${p.number} ${p.title} — by ${p.author}\n  ${p.headBranch} → ${p.baseBranch}\n  ${p.url}`).join("\n"));
     }
     case "comment_on_pr": {
-      const ghToken = await auth.ensureGithubToken();
+      const ghToken = await auth.getGithubToken();
       const comment = await github.commentOnPR(ghToken, args.owner, args.repo, args.prNumber, args.body);
       return textResult(`Comment added to ${args.owner}/${args.repo}#${args.prNumber}\n${comment.url}`);
     }
     case "search_github_code": {
-      const ghToken = await auth.ensureGithubToken();
+      const ghToken = await auth.getGithubToken();
       const results = await github.searchCode(ghToken, args.query, args.maxResults || 10);
       if (!results.length) return textResult(`No code matching "${args.query}".`);
       return textResult(results.map((r) => `${r.repo}: ${r.path}\n  ${r.url}`).join("\n"));
     }
     // ── Jira ──
     case "list_jira_issues": {
-      const jiraCreds = await auth.ensureJiraCreds();
+      const jiraCreds = await auth.getJiraCreds();
       const issues = await jira.listIssues(jiraCreds, args.jql);
       if (!issues.length) return textResult("No issues found.");
       return textResult(issues.map((i) => `[${i.priority}] ${i.key}: ${i.summary} (${i.status})\n  ${i.url}`).join("\n"));
     }
     case "get_jira_issue": {
-      const jiraCreds = await auth.ensureJiraCreds();
+      const jiraCreds = await auth.getJiraCreds();
       const issue = await jira.getIssue(jiraCreds, args.issueKey);
       return textResult(`${issue.key}: ${issue.summary}\nStatus: ${issue.status} | Priority: ${issue.priority} | Assignee: ${issue.assignee}`);
     }
     case "create_jira_issue": {
-      const jiraCreds = await auth.ensureJiraCreds();
+      const jiraCreds = await auth.getJiraCreds();
       const issue = await jira.createIssue(jiraCreds, {
         projectKey: args.projectKey, summary: args.summary, description: args.description, issueType: args.issueType || "Task",
       });
       return textResult(`Issue created: ${issue.key}\n${issue.url}`);
     }
     case "transition_jira_issue": {
-      const jiraCreds = await auth.ensureJiraCreds();
+      const jiraCreds = await auth.getJiraCreds();
       const result = await jira.transitionIssue(jiraCreds, args.issueKey, args.transitionName);
       return textResult(`${result.issueKey} → ${result.transition} (now: ${result.to})`);
     }
     // ── Slack ──
     case "send_slack_message": {
-      const sToken = await auth.ensureSlackToken();
+      const sToken = await auth.getSlackToken();
       const msg = await slack.sendMessage(sToken, args.channel, args.text);
       return textResult(`Message sent to ${msg.channel} (ts: ${msg.ts})`);
     }
     case "list_slack_channels": {
-      const sToken = await auth.ensureSlackToken();
+      const sToken = await auth.getSlackToken();
       const channels = await slack.listChannels(sToken, args.maxResults || 50);
       if (!channels.length) return textResult("No channels found.");
       return textResult(channels.map((c) => `#${c.name} (${c.isPrivate ? "private" : "public"}, ${c.numMembers} members) — id: ${c.id}`).join("\n"));
     }
     case "get_slack_channel_history": {
-      const sToken = await auth.ensureSlackToken();
+      const sToken = await auth.getSlackToken();
       const msgs = await slack.getChannelHistory(sToken, args.channel, args.maxResults || 20);
       if (!msgs.length) return textResult("No messages in this channel.");
       return textResult(msgs.map((m) => `${m.user}: ${m.text.slice(0, 200)}`).join("\n"));
     }
     case "search_slack_messages": {
-      const sToken = await auth.ensureSlackToken();
+      const sToken = await auth.getSlackToken();
       const msgs = await slack.searchMessages(sToken, args.query, args.maxResults || 20);
       if (!msgs.length) return textResult(`No messages matching "${args.query}".`);
       return textResult(msgs.map((m) => `[#${m.channel}] ${m.user}: ${m.text.slice(0, 300)}\n  ${m.permalink}`).join("\n"));
     }
     // ── SigNoz ──
     case "get_service_health": {
-      const sCreds = await auth.ensureSignozCreds();
+      const sCreds = await auth.getSignozCreds();
       const health = await signoz.getServiceHealth(sCreds, args.serviceName, args.windowMinutes || 60);
       return textResult(
         `${health.serviceName} (last ${health.windowMinutes}min):\n` +
@@ -758,7 +758,7 @@ async function callTool(name, args = {}) {
       );
     }
     case "query_traces": {
-      const sCreds = await auth.ensureSignozCreds();
+      const sCreds = await auth.getSignozCreds();
       const traces = await signoz.queryTraces(sCreds, {
         serviceName: args.serviceName,
         hasError: args.hasError || false,
@@ -776,7 +776,7 @@ async function callTool(name, args = {}) {
       );
     }
     case "list_alert_rules": {
-      const sCreds = await auth.ensureSignozCreds();
+      const sCreds = await auth.getSignozCreds();
       const rules = await signoz.listAlertRules(sCreds);
       const arr = Array.isArray(rules) ? rules : [];
       if (!arr.length) return textResult("No alert rules configured.");
@@ -793,13 +793,13 @@ async function callTool(name, args = {}) {
       );
     }
     case "list_notification_channels": {
-      const sCreds = await auth.ensureSignozCreds();
+      const sCreds = await auth.getSignozCreds();
       const channels = await signoz.listNotificationChannels(sCreds);
       if (!channels.length) return textResult("No notification channels configured.");
       return textResult(channels.map((c) => `${c.name} [${c.type}] (id: ${c.id})`).join("\n"));
     }
     case "get_alert_history": {
-      const sCreds = await auth.ensureSignozCreds();
+      const sCreds = await auth.getSignozCreds();
       const history = await signoz.getAlertHistory(sCreds, args.ruleId, args.windowMinutes || 1440);
       const text = typeof history === "string" ? history : JSON.stringify(history, null, 2);
       return textResult(text || "(no history)");

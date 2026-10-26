@@ -64,8 +64,8 @@ function parseTraceRow(row) {
 
 async function queryTraces(creds, { serviceName, hasError, windowMinutes = 60, limit = 20 }) {
   const now = Date.now();
-  const start = Math.floor((now - windowMinutes * 60_000) / 1000);
-  const end = Math.floor(now / 1000);
+  const start = now - windowMinutes * 60_000;
+  const end = now;
 
   const filterParts = ["parent_span_id = ''"];
   if (serviceName) filterParts.push(`service.name = '${serviceName.replace(/'/g, "''")}'`);

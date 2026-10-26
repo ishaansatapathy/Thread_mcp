@@ -274,4 +274,54 @@ async function ensureSignozCreds() {
   return { cloudUrl, apiKey };
 }
 
-module.exports = { login, logout, getAccessToken, loadConfig, CONFIG_PATH, ensureGithubToken, ensureJiraCreds, ensureSlackToken, ensureSignozCreds };
+// ── Non-interactive getters ──────────────────────────────────────────────────
+// For the MCP server (cli/mcp-server.js): stdin there is the JSON-RPC channel,
+// not a human terminal, so these must never call ask() — only read what's
+// already saved and throw a clear, actionable error otherwise.
+
+function getGithubToken() {
+  const cfg = loadConfig();
+  const token = process.env.GITHUB_TOKEN || cfg.github?.token;
+  if (!token) throw new Error("GitHub not configured. Run: threadmcp github login");
+  return token;
+}
+
+function getJiraCreds() {
+  const cfg = loadConfig();
+  const site = process.env.JIRA_SITE || cfg.jira?.site;
+  const email = process.env.JIRA_EMAIL || cfg.jira?.email;
+  const apiToken = process.env.JIRA_API_TOKEN || cfg.jira?.apiToken;
+  if (!site || !email || !apiToken) throw new Error("Jira not configured. Run: threadmcp jira login");
+  return { site, email, apiToken };
+}
+
+function getSlackToken() {
+  const cfg = loadConfig();
+  const token = process.env.SLACK_BOT_TOKEN || cfg.slack?.token;
+  if (!token) throw new Error("Slack not configured. Run: threadmcp slack login");
+  return token;
+}
+
+function getSignozCreds() {
+  const cfg = loadConfig();
+  const cloudUrl = process.env.SIGNOZ_CLOUD_URL || cfg.signoz?.cloudUrl;
+  const apiKey = process.env.SIGNOZ_API_KEY || cfg.signoz?.apiKey;
+  if (!cloudUrl || !apiKey) throw new Error("SigNoz not configured. Run: threadmcp signoz login");
+  return { cloudUrl, apiKey };
+}
+
+module.exports = {
+  login,
+  logout,
+  getAccessToken,
+  loadConfig,
+  CONFIG_PATH,
+  ensureGithubToken,
+  ensureJiraCreds,
+  ensureSlackToken,
+  ensureSignozCreds,
+  getGithubToken,
+  getJiraCreds,
+  getSlackToken,
+  getSignozCreds,
+};

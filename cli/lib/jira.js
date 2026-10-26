@@ -98,6 +98,7 @@ async function transitionIssue(creds, issueKey, transitionName) {
   const applyUrl = `${baseUrl(creds)}/issue/${issueKey}/transitions`;
   await g(applyUrl, header, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ transition: { id: match.id } }),
   });
 

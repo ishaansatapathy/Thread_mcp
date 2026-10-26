@@ -238,6 +238,25 @@ async function sheetsRead(token, spreadsheetId, range = "A1:Z100") {
   return result.values || [];
 }
 
+async function sheetsCreate(token, { title, rows }) {
+  const sheet = await g(SHEETS, token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ properties: { title } }),
+  });
+  if (rows && rows.length) {
+    await g(`${SHEETS}/${sheet.spreadsheetId}/values/A1:append?valueInputOption=RAW`, token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ values: rows }),
+    });
+  }
+  return {
+    spreadsheetId: sheet.spreadsheetId,
+    url: `https://docs.google.com/spreadsheets/d/${sheet.spreadsheetId}/edit`,
+  };
+}
+
 module.exports = {
   gmailList,
   gmailSearch,
@@ -252,4 +271,5 @@ module.exports = {
   docsRead,
   docsCreate,
   sheetsRead,
+  sheetsCreate,
 };

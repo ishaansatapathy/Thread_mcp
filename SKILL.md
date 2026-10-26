@@ -6,11 +6,13 @@ Gives Alan AI direct access to your Gmail, Calendar, Drive, Meet and Classroom �
 
 - **Gmail** — search inbox, read threads
 - **Calendar** — list events, create meetings, generate Meet links
-- **Drive** — search files by name
+- **Drive** — search files by name, read file content
+- **Docs / Sheets / Slides** — read content, create new files
+- **Forms** — read questions, check response counts
 - **Classroom** — check due assignments across active courses
 - **Brief** — a combined daily summary (calendar + inbox + classroom)
 
-Write actions (sending an email, creating an event) are available from the CLI with a confirmation prompt; the MCP tools exposed to Alan AI cover reads plus Meet-link creation.
+Write actions (sending an email, creating an event, creating a Doc/Sheet/Slides) are available from the CLI with a confirmation prompt, and as MCP tools for Alan AI.
 
 ## Setup
 

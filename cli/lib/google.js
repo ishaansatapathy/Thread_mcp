@@ -257,6 +257,25 @@ async function sheetsCreate(token, { title, rows }) {
   };
 }
 
+// ── Slides ─────────────────────────────────────────────────────────────────
+
+function extractSlidesText(presentation) {
+  return (presentation.slides || []).map((slide, i) => {
+    const texts = [];
+    for (const el of slide.pageElements || []) {
+      const textElements = el.shape?.text?.textElements || [];
+      const t = textElements.map((te) => te.textRun?.content || "").join("");
+      if (t.trim()) texts.push(t.trim());
+    }
+    return `Slide ${i + 1}: ${texts.join(" / ") || "(no text)"}`;
+  });
+}
+
+async function slidesRead(token, presentationId) {
+  const presentation = await g(`${SLIDES}/${presentationId}`, token);
+  return { title: presentation.title, slides: extractSlidesText(presentation) };
+}
+
 module.exports = {
   gmailList,
   gmailSearch,
@@ -272,4 +291,5 @@ module.exports = {
   docsCreate,
   sheetsRead,
   sheetsCreate,
+  slidesRead,
 };

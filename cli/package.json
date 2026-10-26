@@ -6,9 +6,24 @@
     "threadmcp": "./gwork.js"
   },
   "main": "./gwork.js",
+  "files": [
+    "gwork.js",
+    "mcp-server.js",
+    "lib/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "start": "node gwork.js"
+    "start": "node gwork.js",
+    "prepack": "node -e \"const fs=require('fs');fs.copyFileSync('../README.md','README.md');fs.copyFileSync('../LICENSE','LICENSE')\""
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ishaansatapathy/Thread_mcp.git",
+    "directory": "cli"
+  },
+  "homepage": "https://github.com/ishaansatapathy/Thread_mcp#readme",
+  "bugs": "https://github.com/ishaansatapathy/Thread_mcp/issues",
   "keywords": ["google-workspace", "gmail", "calendar", "drive", "cli", "mcp", "alan-ai"],
   "author": "Ishaan Satapathy",
   "license": "MIT",

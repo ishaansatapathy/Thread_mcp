@@ -2,3 +2,6 @@ node_modules/
 *.log
 .env
 .gwork.json
+cli/README.md
+cli/LICENSE
+*.tgz

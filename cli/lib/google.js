@@ -198,6 +198,23 @@ async function classroomDueWork(token) {
   return all.sort((a, b) => new Date(a.due) - new Date(b.due));
 }
 
+// ── Docs ───────────────────────────────────────────────────────────────────
+
+function extractDocText(doc) {
+  const lines = [];
+  for (const el of doc.body?.content || []) {
+    if (!el.paragraph) continue;
+    const text = (el.paragraph.elements || []).map((e) => e.textRun?.content || "").join("");
+    if (text.trim()) lines.push(text.trimEnd());
+  }
+  return lines.join("\n");
+}
+
+async function docsRead(token, documentId) {
+  const doc = await g(`${DOCS}/${documentId}`, token);
+  return { title: doc.title, text: extractDocText(doc) };
+}
+
 module.exports = {
   gmailList,
   gmailSearch,
@@ -207,5 +224,7 @@ module.exports = {
   calendarCreateEvent,
   createMeetLink,
   driveSearch,
+  driveReadFile,
   classroomDueWork,
+  docsRead,
 };

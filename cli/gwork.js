@@ -186,6 +186,33 @@ const commands = {
     }
   },
 
+  async sheet(args) {
+    const token = await auth.getAccessToken();
+    const sub = args[0];
+    if (sub === "read") {
+      const spreadsheetId = args[1];
+      const range = args[2];
+      if (!spreadsheetId) return console.error("Usage: threadmcp sheet read <spreadsheetId> [range]");
+      printHeader("Sheet");
+      const rows = await google.sheetsRead(token, spreadsheetId, range);
+      if (!rows.length) return console.log("No data.");
+      for (const row of rows) console.log(row.join("\t"));
+    } else if (sub === "create") {
+      const rest = args.slice(1).join(" ");
+      const match = rest.match(/^"([^"]+)"\s*(.*)$/);
+      if (!match) return console.error('Usage: threadmcp sheet create "<title>" <row,of,values>');
+      const [, title, rowText] = match;
+      const rows = rowText ? [rowText.split(",").map((v) => v.trim())] : [];
+      printHeader(`Create Sheet: ${title}`);
+      const confirm = await ask("Create this sheet? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      const sheet = await google.sheetsCreate(token, { title, rows });
+      console.log(`\x1b[32m✓ Created.\x1b[0m ${sheet.url}`);
+    } else {
+      console.error('Usage: threadmcp sheet [read <spreadsheetId> [range]|create "<title>" <row,of,values>]');
+    }
+  },
+
   async classroom() {
     const token = await auth.getAccessToken();
     printHeader("Classroom — Due Work");

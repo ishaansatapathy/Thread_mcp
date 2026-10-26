@@ -56,6 +56,7 @@ async function gmailList(token, { query = "", maxResults = 10, labels } = {}) {
   return messages.map((m) => ({
     id: m.id,
     threadId: m.threadId,
+    internalDate: m.internalDate,
     from: header(m.payload.headers, "From"),
     subject: header(m.payload.headers, "Subject"),
     snippet: cleanSnippet(m.snippet),
@@ -130,6 +131,70 @@ async function calendarList(token, { timeMin, timeMax, maxResults = 10 } = {}) {
   }));
 }
 
+/**
+ * Check if a proposed time window overlaps with any existing events.
+ * Returns conflicting events (empty array = no conflict).
+ */
+async function checkConflicts(token, { start, end }) {
+  const events = await calendarList(token, {
+    timeMin: new Date(new Date(start).getTime() - 60 * 60_000).toISOString(),
+    timeMax: new Date(new Date(end).getTime() + 60 * 60_000).toISOString(),
+    maxResults: 20,
+  });
+  const proposedStart = new Date(start).getTime();
+  const proposedEnd = new Date(end).getTime();
+  return events.filter((e) => {
+    const eStart = new Date(e.start).getTime();
+    const eEnd = new Date(e.end).getTime();
+    return eStart < proposedEnd && eEnd > proposedStart;
+  });
+}
+
+/**
+ * Find free time slots within working hours for a given date.
+ */
+async function getFreeSlots(token, dateStr, { startHour = 8, endHour = 20, minSlotMin = 15 } = {}) {
+  const day = dateStr ? new Date(dateStr) : new Date();
+  day.setHours(0, 0, 0, 0);
+  const ws = new Date(day);
+  ws.setHours(startHour, 0, 0, 0);
+  const we = new Date(day);
+  we.setHours(endHour, 0, 0, 0);
+
+  const events = await calendarList(token, {
+    timeMin: ws.toISOString(),
+    timeMax: we.toISOString(),
+    maxResults: 50,
+  });
+
+  const slots = [];
+  let cursor = ws.getTime();
+  const sorted = events.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+  for (const e of sorted) {
+    const eStart = new Date(e.start).getTime();
+    if (eStart - cursor >= minSlotMin * 60_000) {
+      slots.push({
+        start: new Date(cursor).toISOString(),
+        end: new Date(eStart).toISOString(),
+        durationMin: Math.round((eStart - cursor) / 60_000),
+      });
+    }
+    const eEnd = new Date(e.end).getTime();
+    if (eEnd > cursor) cursor = eEnd;
+  }
+
+  if (we.getTime() - cursor >= minSlotMin * 60_000) {
+    slots.push({
+      start: new Date(cursor).toISOString(),
+      end: new Date(we).toISOString(),
+      durationMin: Math.round((we.getTime() - cursor) / 60_000),
+    });
+  }
+
+  return { date: day.toLocaleDateString(), workingHours: `${startHour}:00–${endHour}:00`, slots };
+}
+
 function calendarCreateEvent(token, { summary, start, end, attendees = [], withMeet = false }) {
   const body = {
     summary,
@@ -170,6 +235,19 @@ async function driveSearch(token, query, maxResults = 10) {
   });
   const result = await g(`${DRIVE}/files?${params}`, token);
   return result.files || [];
+}
+
+async function driveContentSearch(token, query, maxResults = 10) {
+  const params = new URLSearchParams({
+    q: `(fullText contains '${query.replace(/'/g, "\\'")}' or name contains '${query.replace(/'/g, "\\'")}') and trashed=false`,
+    pageSize: String(maxResults),
+    fields: "files(id,name,mimeType,webViewLink,modifiedTime)",
+  });
+  const result = await g(`${DRIVE}/files?${params}`, token);
+  return (result.files || []).map((f) => ({
+    ...f,
+    matchedBy: f.name.toLowerCase().includes(query.toLowerCase()) ? "name" : "content",
+  }));
 }
 
 const DRIVE_EXPORT_MIME = {
@@ -354,6 +432,40 @@ async function formsResponses(token, formId) {
   return result.responses || [];
 }
 
+// ── Inbox Priority ──────────────────────────────────────────────────────────
+
+const URGENT_KEYWORDS = /\b(urgent|asap|critical|important|action required|deadline|overdue|alert)\b/i;
+const IMPORTANT_KEYWORDS = /\b(review|approve|invoice|payment|contract|offer|hiring|budget)\b/i;
+
+async function getPriorityInbox(token, maxResults = 10) {
+  const items = await gmailList(token, { maxResults: Math.max(maxResults, 20), labels: "INBOX" });
+  const now = Date.now();
+
+  const scored = items.map((m) => {
+    let score = 0;
+    const reasons = [];
+
+    if (m.unread) { score += 10; reasons.push("unread"); }
+
+    const ageHours = (now - (m.internalDate ? parseInt(m.internalDate, 10) : now)) / 3_600_000;
+    if (ageHours < 4) { score += 5; reasons.push("very recent"); }
+    else if (ageHours < 24) { score += 2; reasons.push("today"); }
+
+    const subject = m.subject || "";
+    if (URGENT_KEYWORDS.test(subject)) { score += 8; reasons.push("urgent keyword"); }
+    else if (IMPORTANT_KEYWORDS.test(subject)) { score += 4; reasons.push("important keyword"); }
+
+    const label = score >= 18 ? "CRITICAL" : score >= 12 ? "HIGH" : score >= 6 ? "MEDIUM" : "LOW";
+
+    return { ...m, priority: { score, label, reasons } };
+  });
+
+  return scored
+    .filter((m) => m.priority.score > 0)
+    .sort((a, b) => b.priority.score - a.priority.score)
+    .slice(0, maxResults);
+}
+
 module.exports = {
   gmailList,
   gmailSearch,
@@ -362,9 +474,13 @@ module.exports = {
   calendarList,
   calendarCreateEvent,
   createMeetLink,
+  checkConflicts,
+  getFreeSlots,
   driveSearch,
+  driveContentSearch,
   driveReadFile,
   classroomDueWork,
+  getPriorityInbox,
   docsRead,
   docsCreate,
   sheetsRead,

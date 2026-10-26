@@ -44,7 +44,7 @@ https://meet.google.com/abc-defg-hij
 ## Install
 
 ```bash
-# from npm (once published)
+# from npm
 npm install -g @ishaan_satapathy/threadmcp
 
 # or run from source
@@ -102,9 +102,9 @@ Or from source before npm publish:
 Run `threadmcp login` once first (outside Alan AI) so the token exists. Then ask Alan AI:
 
 - *"What's urgent in my inbox?"*
-- *"Schedule a call with Rahul tomorrow at 3pm"*
-- *"Find the Q3 deck in my Drive"*
-- *"What assignments are due this week?"*
+- *"Schedule a call with Rahul tomorrow at 3pm"* — auto-detects conflicts!
+- *"When am I free for a 30-minute call today?"*
+- *"Find the Q3 deck in my Drive"* — searches inside files, not just names
 - *"Brief me on today"*
 
 ---
@@ -174,6 +174,9 @@ Every write action (send email, create event) prints what it's about to do and a
 | `get_form_responses` | Get a Form's response count |
 | `list_classroom_due_work` | Due assignments |
 | `get_daily_brief` | Combined calendar + inbox + classroom summary |
+| `get_free_slots` | Find open time slots in your calendar (e.g. "when am I free today?") |
+| `search_drive_content` | Deep-search inside file contents (Docs, PDFs, Sheets), not just filenames |
+| `get_priority_inbox` | Smart inbox — ranks messages by urgency (unread, recency, keywords) |
 
 ---
 

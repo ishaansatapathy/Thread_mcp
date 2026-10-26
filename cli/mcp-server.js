@@ -3,7 +3,10 @@
 /**
  * Minimal MCP server over stdio — JSON-RPC 2.0, newline-delimited.
  * Reuses the same Google OAuth token saved by `threadmcp login`.
- * Point Alan AI's MCP config at: { "command": "npx", "args": ["-y", "threadmcp", "mcp"] }
+ * Point Alan AI's MCP config at:
+ *   { "command": "npx", "args": ["-y", "@ishaan_satapathy/threadmcp", "mcp"] }
+ * 21 tools: Gmail, Calendar, Drive (deep search), Docs, Sheets, Slides, Forms, Classroom +
+ *   smart inbox prioritization, conflict detection, free-slot finder.
  */
 
 const readline = require("readline");
@@ -148,6 +151,34 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: "get_free_slots",
+    description: "Find available time slots in your calendar for a given day (default today). Know when you're free to schedule.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        date: { type: "string", description: "Optional date (default today), e.g. '2026-10-27' or 'tomorrow'" },
+        minSlotMin: { type: "number", description: "Minimum free slot in minutes (default 15)" },
+      },
+    },
+  },
+  {
+    name: "search_drive_content",
+    description: "Deep-search Google Drive — scans inside files (Docs, PDFs, Sheets) for your keywords, not just filenames.",
+    inputSchema: {
+      type: "object",
+      required: ["query"],
+      properties: { query: { type: "string" }, maxResults: { type: "number" } },
+    },
+  },
+  {
+    name: "get_priority_inbox",
+    description: "Smart inbox — scores and ranks recent messages by urgency (unread, recency, keywords). Returns only what matters.",
+    inputSchema: {
+      type: "object",
+      properties: { maxResults: { type: "number", description: "How many to return (default 10)" } },
+    },
+  },
 ];
 
 function textResult(text) {
@@ -197,6 +228,13 @@ async function callTool(name, args = {}) {
       const mins = args.durationMinutes || 30;
       const end = new Date(start.getTime() + mins * 60_000);
       const withMeet = args.withMeet !== false;
+
+      // Conflict detection
+      const conflicts = await google.checkConflicts(token, {
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
+
       const event = await google.calendarCreateEvent(token, {
         summary: args.summary,
         start: start.toISOString(),
@@ -204,7 +242,41 @@ async function callTool(name, args = {}) {
         attendees: args.attendees || [],
         withMeet,
       });
-      return textResult(event.htmlLink || `Event created. ID: ${event.id}`);
+
+      let msg = event.htmlLink || `Event created. ID: ${event.id}`;
+      if (conflicts.length) {
+        const conflictList = conflicts.map((c) => `  ⚠  ${c.start} — ${c.summary}`).join("\n");
+        msg = `⚠  CONFLICT DETECTED — these overlap:\n${conflictList}\n\nEvent still created:\n${msg}`;
+      }
+      return textResult(msg);
+    }
+    case "get_free_slots": {
+      const date = args.date ? parseWhen(args.date).toISOString() : new Date().toISOString();
+      const minSlotMin = args.minSlotMin || 15;
+      const result = await google.getFreeSlots(token, date, { minSlotMin });
+      const lines = [`${result.date} (${result.workingHours})`];
+      if (!result.slots.length) lines.push("No free slots available.");
+      else
+        for (const s of result.slots)
+          lines.push(`  ${new Date(s.start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} → ${new Date(s.end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} (${s.durationMin}min)`);
+      return textResult(lines.join("\n"));
+    }
+    case "search_drive_content": {
+      const files = await google.driveContentSearch(token, args.query, args.maxResults || 10);
+      if (!files.length) return textResult("No files found (tried both filenames and content).");
+      return textResult(
+        files.map((f) => `${f.name} (${f.mimeType}${f.matchedBy === "content" ? ", matched in content" : ""}) — ${f.webViewLink}`).join("\n"),
+      );
+    }
+    case "get_priority_inbox": {
+      const items = await google.getPriorityInbox(token, args.maxResults || 10);
+      if (!items.length) return textResult("Inbox is clear — nothing urgent.");
+      return textResult(
+        items.map(
+          (m) =>
+            `[${m.priority.label}] ${m.from}: "${m.subject}"${m.priority.reasons.length ? ` — ${m.priority.reasons.join(", ")}` : ""}`,
+        ).join("\n"),
+      );
     }
     case "search_drive": {
       const files = await google.driveSearch(token, args.query, args.maxResults || 10);

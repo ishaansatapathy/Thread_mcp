@@ -19,7 +19,7 @@ Write actions (sending an email, creating an event, creating a Doc/Sheet/Slides)
 ### 1. Install
 
 ```bash
-# from npm (once published)
+# from npm
 npm install -g @ishaan_satapathy/threadmcp
 
 # or run from source
@@ -58,9 +58,12 @@ This opens a browser for Google sign-in and saves a token to `~/.gwork.json`. Th
 | `get_thread` | Read a full email thread |
 | `list_calendar_events` | List upcoming events |
 | `create_meet_link` | Generate a Meet link |
-| `create_calendar_event` | Schedule a Calendar event |
-| `search_drive` | Search Google Drive |
+| `create_calendar_event` | Schedule a Calendar event (with conflict detection) |
+| `get_free_slots` | Find available time slots in your calendar |
+| `search_drive` | Search Google Drive by name |
+| `search_drive_content` | Deep-search inside file contents |
 | `read_drive_file` | Read a Drive file's content |
+| `get_priority_inbox` | Smart inbox — scored & ranked by urgency |
 | `read_doc` / `create_doc` | Read or create a Google Doc |
 | `read_sheet` / `create_sheet` | Read or create a Google Sheet |
 | `read_slides` / `create_slides` | Read or create a Slides deck |
@@ -69,6 +72,8 @@ This opens a browser for Google sign-in and saves a token to `~/.gwork.json`. Th
 | `get_daily_brief` | Combined daily summary |
 
 ## Example prompts
+
+> "When am I free for a 30-minute call tomorrow?"
 
 > "What's urgent in my inbox?"
 

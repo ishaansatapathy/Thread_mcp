@@ -322,6 +322,11 @@ async function formsRead(token, formId) {
   return { title: form.info?.title, questions };
 }
 
+async function formsResponses(token, formId) {
+  const result = await g(`${FORMS}/${formId}/responses`, token);
+  return result.responses || [];
+}
+
 module.exports = {
   gmailList,
   gmailSearch,
@@ -340,4 +345,5 @@ module.exports = {
   slidesRead,
   slidesCreate,
   formsRead,
+  formsResponses,
 };

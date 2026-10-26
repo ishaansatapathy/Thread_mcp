@@ -145,6 +145,28 @@ async function driveSearch(token, query, maxResults = 10) {
   return result.files || [];
 }
 
+const DRIVE_EXPORT_MIME = {
+  "application/vnd.google-apps.document": "text/plain",
+  "application/vnd.google-apps.spreadsheet": "text/csv",
+  "application/vnd.google-apps.presentation": "text/plain",
+};
+
+async function driveReadFile(token, fileId) {
+  const meta = await g(`${DRIVE}/files/${fileId}?fields=id,name,mimeType`, token);
+  const exportMime = DRIVE_EXPORT_MIME[meta.mimeType];
+
+  const url = exportMime
+    ? `${DRIVE}/files/${fileId}/export?mimeType=${encodeURIComponent(exportMime)}`
+    : `${DRIVE}/files/${fileId}?alt=media`;
+
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Google API error (${res.status}): ${text.slice(0, 300)}`);
+  }
+  return { name: meta.name, mimeType: meta.mimeType, content: await res.text() };
+}
+
 // ── Classroom ──────────────────────────────────────────────────────────────
 
 async function classroomDueWork(token) {

@@ -12,9 +12,13 @@ Gives Alan AI direct access to your Gmail, Calendar, Drive, Meet and Classroom �
 - **Classroom** — check due assignments across active courses
 - **Tasks** — list, create, and complete Google Tasks
 - **Contacts** — search your Google Contacts by name
+- **GitHub** — repos, issues, pull requests, code search, PR comments
+- **Jira** — list/get/create issues, move issues between statuses
+- **Slack** — send messages, list channels, read/search history
+- **SigNoz** — service health, alert rules, dashboards
 - **Brief** — a combined daily summary (calendar + inbox + classroom)
 
-Write actions (send, archive, trash, delete, share, create) are available from the CLI with a confirmation prompt, and as MCP tools for Alan AI.
+Write actions (send, archive, trash, delete, share, create, comment, transition) are available from the CLI with a confirmation prompt, and as MCP tools for Alan AI.
 
 ## Setup
 
@@ -78,8 +82,23 @@ This opens a browser for Google sign-in and saves a token to `~/.gwork.json`. Th
 | `list_tasks` / `create_task` / `complete_task` | Manage Google Tasks |
 | `find_contact` | Search your Google Contacts |
 | `last_interaction` | Most recent email exchange with a person |
+| `list_github_repos` / `list_github_issues` / `list_github_pull_requests` | Browse GitHub repos, issues, PRs |
+| `create_github_issue` / `comment_on_pr` / `search_github_code` | Write to GitHub |
+| `list_jira_issues` / `get_jira_issue` / `create_jira_issue` / `transition_jira_issue` | Manage Jira |
+| `send_slack_message` / `list_slack_channels` / `get_slack_channel_history` / `search_slack_messages` | Interact with Slack |
+| `get_signoz_service_health` / `list_signoz_alert_rules` / `list_signoz_dashboards` | Query SigNoz observability |
 
 ## Example prompts
+
+> "List my open GitHub pull requests for evolvex"
+
+> "Create a Jira bug ticket for the checkout 500 error"
+
+> "Post 'deploy complete' to #engineering"
+
+> "Search Slack for mentions of the incident"
+
+> "What's the p99 latency of payments-svc in SigNoz?"
 
 > "When did I last hear from Rahul?"
 

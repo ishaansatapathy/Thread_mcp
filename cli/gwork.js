@@ -9,6 +9,10 @@
 const readline = require("readline");
 const auth = require("./lib/auth");
 const google = require("./lib/google");
+const github = require("./lib/github");
+const jira = require("./lib/jira");
+const slack = require("./lib/slack");
+const signoz = require("./lib/signoz");
 const { parseWhen } = require("./lib/when");
 
 function printHeader(text) {
@@ -404,6 +408,170 @@ const commands = {
     }
   },
 
+  async github(args) {
+    const token = await auth.ensureGithubCreds();
+    const sub = args[0];
+
+    if (sub === "repos" || !sub) {
+      printHeader("GitHub Repos");
+      const repos = await github.listRepos(token, 20);
+      if (!repos.length) return console.log("No repositories.");
+      for (const r of repos) console.log(`${r.fullName}${r.private ? " [private]" : ""}\n  ${r.description || "(no description)"}\n  ${r.url}`);
+    } else if (sub === "issues") {
+      const [owner, repo] = args.slice(1);
+      if (!owner || !repo) return console.error("Usage: threadmcp github issues <owner> <repo>");
+      printHeader(`Issues: ${owner}/${repo}`);
+      const issues = await github.listIssues(token, owner, repo);
+      if (!issues.length) return console.log("No open issues.");
+      for (const i of issues) console.log(`#${i.number} [${i.state}] ${i.title} — by ${i.author}\n  ${i.url}`);
+    } else if (sub === "create-issue") {
+      const rest = args.slice(1).join(" ");
+      const match = rest.match(/^(\S+)\s+(\S+)\s+"([^"]+)"(?:\s+(.*))?$/);
+      if (!match) return console.error('Usage: threadmcp github create-issue <owner> <repo> "<title>" [body]');
+      const [, owner, repo, title, body] = match;
+      printHeader(`Create Issue: ${owner}/${repo}`);
+      console.log(`${title}\n${body || ""}`);
+      const confirm = await ask("Create this issue? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      const issue = await github.createIssue(token, owner, repo, { title, body });
+      console.log(`\x1b[32m✓ Created.\x1b[0m #${issue.number} — ${issue.url}`);
+    } else if (sub === "prs") {
+      const [owner, repo] = args.slice(1);
+      if (!owner || !repo) return console.error("Usage: threadmcp github prs <owner> <repo>");
+      printHeader(`Pull Requests: ${owner}/${repo}`);
+      const prs = await github.listPullRequests(token, owner, repo);
+      if (!prs.length) return console.log("No open PRs.");
+      for (const p of prs) console.log(`#${p.number} ${p.title} — by ${p.author}\n  ${p.headBranch} → ${p.baseBranch}\n  ${p.url}`);
+    } else if (sub === "comment") {
+      const rest = args.slice(1).join(" ");
+      const match = rest.match(/^(\S+)\s+(\S+)\s+(\d+)\s+"([^"]+)"$/);
+      if (!match) return console.error('Usage: threadmcp github comment <owner> <repo> <prNumber> "<body>"');
+      const [, owner, repo, prNum, body] = match;
+      printHeader(`Comment on ${owner}/${repo}#${prNum}`);
+      const confirm = await ask("Post this comment? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      const comment = await github.commentOnPR(token, owner, repo, parseInt(prNum), body);
+      console.log(`\x1b[32m✓ Commented.\x1b[0m ${comment.url}`);
+    } else if (sub === "search") {
+      const query = args.slice(1).join(" ");
+      if (!query) return console.error('Usage: threadmcp github search "<query>"');
+      printHeader(`Code Search: ${query}`);
+      const results = await github.searchCode(token, query);
+      if (!results.length) return console.log("No results.");
+      for (const r of results) console.log(`${r.repo}: ${r.path}\n  ${r.url}`);
+    } else {
+      console.error("Usage: threadmcp github [repos|issues|create-issue|prs|comment|search]");
+    }
+  },
+
+  async jira(args) {
+    const creds = await auth.ensureJiraCreds();
+    const sub = args[0];
+
+    if (sub === "list" || !sub) {
+      const jql = args.slice(1).join(" ") || undefined;
+      printHeader("Jira Issues");
+      const issues = await jira.listIssues(creds, jql);
+      if (!issues.length) return console.log("No issues found.");
+      for (const i of issues) console.log(`[${i.priority}] ${i.key}: ${i.summary} (${i.status})\n  ${i.url}`);
+    } else if (sub === "get") {
+      const issueKey = args[1];
+      if (!issueKey) return console.error("Usage: threadmcp jira get <ISSUE-KEY>");
+      printHeader(`Jira: ${issueKey}`);
+      const issue = await jira.getIssue(creds, issueKey);
+      console.log(`${issue.key}: ${issue.summary}\nStatus: ${issue.status} | Priority: ${issue.priority} | Assignee: ${issue.assignee}`);
+    } else if (sub === "create") {
+      const rest = args.slice(1).join(" ");
+      const match = rest.match(/^"([^"]+)"\s+"([^"]+)"(?:\s+(.*))?$/);
+      if (!match) return console.error('Usage: threadmcp jira create "<projectKey>" "<summary>" [description]');
+      const [, projectKey, summary, description] = match;
+      printHeader(`Create Jira Issue: ${projectKey}`);
+      console.log(`${summary}\n${description || ""}`);
+      const confirm = await ask("Create this issue? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      const issue = await jira.createIssue(creds, { projectKey, summary, description });
+      console.log(`\x1b[32m✓ Created.\x1b[0m ${issue.key} — ${issue.url}`);
+    } else if (sub === "transition") {
+      const [issueKey, ...restArr] = args.slice(1);
+      const transitionName = restArr.join(" ");
+      if (!issueKey || !transitionName) return console.error("Usage: threadmcp jira transition <ISSUE-KEY> <transitionName>");
+      printHeader(`Transition: ${issueKey}`);
+      const confirm = await ask(`Transition to "${transitionName}"? (y/n): `);
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      const result = await jira.transitionIssue(creds, issueKey, transitionName);
+      console.log(`\x1b[32m✓ ${result.issueKey} → ${result.transition} (now: ${result.to})\x1b[0m`);
+    } else {
+      console.error("Usage: threadmcp jira [list|get|create|transition]");
+    }
+  },
+
+  async slack(args) {
+    const token = await auth.ensureSlackCreds();
+    const sub = args[0];
+
+    if (sub === "send") {
+      const rest = args.slice(1).join(" ");
+      const match = rest.match(/^(\S+)\s+"([^"]+)"$/);
+      if (!match) return console.error('Usage: threadmcp slack send <channel> "<text>"');
+      const [, channel, text] = match;
+      printHeader(`Send to ${channel}`);
+      const confirm = await ask("Send this message? (y/n): ");
+      if (confirm.toLowerCase() !== "y") return console.log("Cancelled.");
+      const msg = await slack.sendMessage(token, channel, text);
+      console.log(`\x1b[32m✓ Sent.\x1b[0m (ts: ${msg.ts})`);
+    } else if (sub === "channels") {
+      printHeader("Slack Channels");
+      const channels = await slack.listChannels(token);
+      if (!channels.length) return console.log("No channels.");
+      for (const c of channels) console.log(`#${c.name} (${c.isPrivate ? "private" : "public"}, ${c.numMembers} members) — ${c.id}`);
+    } else if (sub === "history") {
+      const channel = args[1];
+      if (!channel) return console.error("Usage: threadmcp slack history <channel>");
+      printHeader(`Channel: ${channel}`);
+      const msgs = await slack.getChannelHistory(token, channel);
+      if (!msgs.length) return console.log("No messages.");
+      for (const m of msgs) console.log(`${m.user}: ${m.text.slice(0, 300)}`);
+    } else if (sub === "search") {
+      const query = args.slice(1).join(" ");
+      if (!query) return console.error('Usage: threadmcp slack search "<query>"');
+      printHeader(`Search: ${query}`);
+      const msgs = await slack.searchMessages(token, query);
+      if (!msgs.length) return console.log("No results.");
+      for (const m of msgs) console.log(`[#${m.channel}] ${m.user}: ${m.text.slice(0, 300)}\n  ${m.permalink}`);
+    } else {
+      console.error("Usage: threadmcp slack [send|channels|history|search]");
+    }
+  },
+
+  async signoz(args) {
+    const creds = await auth.ensureSignozCreds();
+    const sub = args[0];
+
+    if (sub === "health" || !sub) {
+      const serviceName = args[1];
+      if (!serviceName) return console.error("Usage: threadmcp signoz health <serviceName> [windowMinutes]");
+      const windowMinutes = parseInt(args[2]) || 60;
+      printHeader(`Service Health: ${serviceName}`);
+      const health = await signoz.getServiceHealth(creds, serviceName, windowMinutes);
+      console.log(`Window: ${health.windowMinutes}min`);
+      console.log(`Requests: ${health.requestRate}`);
+      console.log(`Errors (≥500): ${health.errorRate}`);
+      console.log(`p99 latency: ${health.p99LatencyMs != null ? `${health.p99LatencyMs}ms` : "N/A"}`);
+    } else if (sub === "alerts") {
+      printHeader("SigNoz Alert Rules");
+      const rules = await signoz.listAlertRules(creds);
+      if (!rules.length) return console.log("No alert rules.");
+      for (const r of rules) console.log(`${r.name} [${r.state}] (id: ${r.id})`);
+    } else if (sub === "dashboards") {
+      printHeader("SigNoz Dashboards");
+      const boards = await signoz.listDashboards(creds);
+      if (!boards.length) return console.log("No dashboards.");
+      for (const d of boards) console.log(`${d.title}${d.description ? ` — ${d.description}` : ""} (id: ${d.id})`);
+    } else {
+      console.error("Usage: threadmcp signoz [health <serviceName>|alerts|dashboards]");
+    }
+  },
+
   help() {
     console.log(`
 \x1b[1mthreadmcp\x1b[0m — Google Workspace CLI, powered by your own Google OAuth login
@@ -467,6 +635,31 @@ const commands = {
 
 \x1b[36mBrief:\x1b[0m
   threadmcp brief
+
+\x1b[36mGitHub:\x1b[0m
+  threadmcp github repos
+  threadmcp github issues <owner> <repo>
+  threadmcp github create-issue <owner> <repo> "<title>" [body]
+  threadmcp github prs <owner> <repo>
+  threadmcp github comment <owner> <repo> <prNumber> "<body>"
+  threadmcp github search "<query>"
+
+\x1b[36mJira:\x1b[0m
+  threadmcp jira list [jql]
+  threadmcp jira get <ISSUE-KEY>
+  threadmcp jira create "<projectKey>" "<summary>" [description]
+  threadmcp jira transition <ISSUE-KEY> <transitionName>
+
+\x1b[36mSlack:\x1b[0m
+  threadmcp slack send <channel> "<text>"
+  threadmcp slack channels
+  threadmcp slack history <channel>
+  threadmcp slack search "<query>"
+
+\x1b[36mSigNoz:\x1b[0m
+  threadmcp signoz health <serviceName> [windowMinutes]
+  threadmcp signoz alerts
+  threadmcp signoz dashboards
 
 \x1b[36mAlan AI:\x1b[0m
   threadmcp mcp                            Start MCP server over stdio

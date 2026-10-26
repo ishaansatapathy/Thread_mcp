@@ -157,6 +157,27 @@ threadmcp tasks done <taskId> <tasklistId>  # complete a task
 threadmcp contact find <name>               # search contacts
 threadmcp contact last <name>               # last email with a person
 
+threadmcp github repos                      # your repositories
+threadmcp github issues <owner> <repo>      # open issues
+threadmcp github create-issue <owner> <repo> "<title>" [body]
+threadmcp github prs <owner> <repo>         # pull requests
+threadmcp github comment <owner> <repo> <prNumber> "<body>"
+threadmcp github search "<query>"           # code search
+
+threadmcp jira list [jql]                   # your unresolved issues
+threadmcp jira get <ISSUE-KEY>              # one issue
+threadmcp jira create "<projectKey>" "<summary>" [description]
+threadmcp jira transition <ISSUE-KEY> <transitionName>
+
+threadmcp slack send <channel> "<text>"     # post a message
+threadmcp slack channels                    # list channels
+threadmcp slack history <channel>           # recent messages
+threadmcp slack search "<query>"            # search messages
+
+threadmcp signoz health <serviceName> [windowMinutes]  # request/error/p99
+threadmcp signoz alerts                     # alert rules
+threadmcp signoz dashboards                 # dashboards
+
 threadmcp brief                             # combined daily summary
 
 threadmcp mcp                               # start MCP server over stdio (for Alan AI)
@@ -203,6 +224,40 @@ Every write action (send email, create event) prints what it's about to do and a
 | `complete_task` | Mark a Google Task as done |
 | `find_contact` | Search Google Contacts by name |
 | `last_interaction` | Find your most recent email exchange with someone |
+| `list_github_repos` | List your GitHub repos |
+| `list_github_issues` | Open issues in a repo |
+| `create_github_issue` | Create a new GitHub issue |
+| `list_github_pull_requests` | Pull requests in a repo |
+| `comment_on_pr` | Comment on a PR |
+| `search_github_code` | Search code across GitHub |
+| `list_jira_issues` | Jira issues (JQL support) |
+| `get_jira_issue` | One Jira issue by key |
+| `create_jira_issue` | Create a Jira issue |
+| `transition_jira_issue` | Move a Jira issue to another status |
+| `send_slack_message` | Post to a Slack channel |
+| `list_slack_channels` | List Slack channels |
+| `get_slack_channel_history` | Recent messages from a channel |
+| `search_slack_messages` | Search Slack messages |
+| `get_signoz_service_health` | Service request/error/p99 metrics |
+| `list_signoz_alert_rules` | SigNoz alert rules |
+| `list_signoz_dashboards` | SigNoz dashboards |
+
+---
+
+## Integrations & credentials
+
+Besides Google OAuth, threadmcp can connect to four more services. Credentials are prompted once and stored in `~/.gwork.json`:
+
+| Service | Credential(s) | Auth header |
+|---|---|---|
+| GitHub | Personal Access Token (PAT) | `Authorization: Bearer <token>` |
+| Jira | Site + Email + API token | `Authorization: Basic base64(email:token)` |
+| Slack | Bot (`xoxb-`) or User (`xoxp-`) token | `Authorization: Bearer <token>` |
+| SigNoz | Cloud URL + API key | `SIGNOZ-API-KEY: <key>` |
+
+Notes:
+- Slack **search** needs a **User token** (`xoxp-`) with `search:read` — bot tokens can't search.
+- SigNoz query bodies target the `/api/v5/query_range` Query Builder engine (SigNoz ≥ v0.50).
 
 ---
 
@@ -210,13 +265,13 @@ Every write action (send email, create event) prints what it's about to do and a
 
 ```
 Alan AI  ──stdio/MCP──┐
-                       ├──→  threadmcp  ──→  Google APIs (Gmail, Calendar, Drive, Classroom)
-Terminal ──direct──────┘            │
+                       ├──→  threadmcp  ──→  Google (Gmail, Calendar, Drive, Tasks, Contacts)
+Terminal ──direct──────┘            │      ──→  GitHub, Jira, Slack, SigNoz
                               ~/.gwork.json
-                         (OAuth token, local only)
+                         (secrets, local only)
 ```
 
-No server, no database — `threadmcp` is a single Node.js process that holds your Google token and calls Google's REST APIs directly.
+No server, no database — `threadmcp` is a single Node.js process that holds your credentials and calls each service's REST API directly.
 
 ---
 

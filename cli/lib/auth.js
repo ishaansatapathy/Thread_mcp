@@ -213,4 +213,65 @@ function logout() {
   console.log("\x1b[32m✓ Signed out.\x1b[0m");
 }
 
-module.exports = { login, logout, getAccessToken, loadConfig, CONFIG_PATH };
+// ── Integration credential helpers ──────────────────────────────────────────
+// Each integration stores its credentials in ~/.gwork.json alongside the Google token.
+// Prompts once, caches forever.
+
+async function ensureGithubCreds() {
+  const cfg = loadConfig();
+  let token = process.env.GITHUB_TOKEN || cfg.githubToken;
+  if (!token) {
+    console.log("\nGitHub Personal Access Token required.");
+    console.log("Create one at https://github.com/settings/tokens (scopes: repo, read:user)\n");
+    token = await ask("GitHub PAT: ");
+    saveConfig({ ...cfg, githubToken: token });
+  }
+  return token;
+}
+
+async function ensureJiraCreds() {
+  const cfg = loadConfig();
+  let site = process.env.JIRA_SITE || cfg.jiraSite;
+  let email = process.env.JIRA_EMAIL || cfg.jiraEmail;
+  let apiToken = process.env.JIRA_API_TOKEN || cfg.jiraApiToken;
+  if (!site || !email || !apiToken) {
+    console.log("\nJira credentials required.");
+    console.log("Site is your subdomain (e.g. 'mycompany' for mycompany.atlassian.net)");
+    console.log("API token: https://id.atlassian.com/manage-profile/security/api-tokens\n");
+    site = await ask("Jira Site: ");
+    email = await ask("Jira Email: ");
+    apiToken = await ask("Jira API Token: ");
+    saveConfig({ ...cfg, jiraSite: site, jiraEmail: email, jiraApiToken: apiToken });
+  }
+  return { site, email, apiToken };
+}
+
+async function ensureSlackCreds() {
+  const cfg = loadConfig();
+  let token = process.env.SLACK_BOT_TOKEN || cfg.slackToken;
+  if (!token) {
+    console.log("\nSlack bot or user token required.");
+    console.log("Bot token: https://api.slack.com/apps → OAuth & Permissions (starts with xoxb-)");
+    console.log("User token: https://api.slack.com/apps → User OAuth Token (starts with xoxp-, needed for search)\n");
+    token = await ask("Slack Token: ");
+    saveConfig({ ...cfg, slackToken: token });
+  }
+  return token;
+}
+
+async function ensureSignozCreds() {
+  const cfg = loadConfig();
+  let cloudUrl = process.env.SIGNOZ_CLOUD_URL || cfg.signozCloudUrl;
+  let apiKey = process.env.SIGNOZ_API_KEY || cfg.signozApiKey;
+  if (!cloudUrl || !apiKey) {
+    console.log("\nSigNoz credentials required.");
+    console.log("Cloud URL: your SigNoz instance (e.g. https://myorg.signoz.cloud or http://localhost:8080)");
+    console.log("API Key: SigNoz → Settings → API Keys → create an Editor key\n");
+    cloudUrl = await ask("SigNoz Cloud URL: ");
+    apiKey = await ask("SigNoz API Key: ");
+    saveConfig({ ...cfg, signozCloudUrl: cloudUrl, signozApiKey: apiKey });
+  }
+  return { cloudUrl, apiKey };
+}
+
+module.exports = { login, logout, getAccessToken, loadConfig, CONFIG_PATH, ensureGithubCreds, ensureJiraCreds, ensureSlackCreds, ensureSignozCreds };
